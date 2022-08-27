@@ -1,0 +1,113 @@
+= Evaluation of StarFive VisionFive SBC
+Cristian Ciocaltea <cristian.ciocaltea@collabora.com>
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+:example-caption!:
+:table-caption!:
+:prewrap!:
+:imagesdir: docs/img
+:toc:
+:toc-placement!:
+:sectnums:
+:sectanchors:
+:sectlinks:
+:PROJECT_NAME: visionfive-debos
+:PROJECT_URL: https://github.com/cristicc/{PROJECT_NAME}
+:PROJECT_DIR: ${HOME}/{PROJECT_NAME}
+:OUTPUT_DIR: {PROJECT_DIR}/build
+
+toc::[]
+
+[IMPORTANT]
+This is currently a work in progress.
+
+== Intro
+
+This is an experimental Debian based OS and application for the VisionFive SBC
+from StarFive <<RefQuickStartQuide>>.
+
+The main purpose of the project is to evaluate the mainline kernel support and
+to find areas of further improvements.
+
+== Boot process
+
+ifdef::env-github[]
+image::visionfive-boot-process.svg[]
+endif::[]
+
+ifndef::env-github[]
+[ditaa]
+----
+/-----------\
+|           |
+|  BootROM  |
+|      cCCC |
+\-----+-----/
+      |
+      | Select boot source
+      | ٭ UART ‑ Load a limited size binary into the on‑chip RAM and execute it
+      |          (for upgrading firmware)
+      | ٭ QSPI ‑ Automatically load the 32K Bootloader from 0x0 (NOR Flash)
+      |          to 0x18000000 (RAM); jump to it for execution
+      v
++-----------\      +----------------------+
+|           |      | {d}                  |
+|BootLoader |<--=--+ bootloader‑٭.bin.out |
+|      cCDF |      |                 cFA7 |
+\-----+-----+      +----------------------+
+      |
+      | Read DDRInit from 0x10000 (NOR Flash) to 0x18080000 (RAM);
+      | jump to it for execution
+      v
++-----------\      +----------------------+
+|           |      | {d}                  |
+|  DDRInit  |<--=--+ ddrinit‑٭.bin.out    |
+|      cCDF |      |                 cFA7 |
+\-----+-----+      +----------------------+
+      |
+      | Initialize DDR; read fw_payload (OpenSBI + Uboot) from 0x40000 (NOR Flash)
+      | to 0x80000000 (DDR); jump to it to execute the OpenSBI
+      v
++-----------\      +----------------------+
+|           |      | {d}                  |
+|  OpenSBI  |<--=--+ dfw_payload.bin.out  |
+|      cCDF |      |                 cFA7 |
+\-----+-----+      +----------------------+
+      |
+      | Provide basic system calls for Linux; switch the mode from M to S;
+      | jump to 0x80020000 (DDR) to execute U-Boot
+      v
++-----------+      +-----------------------+
+|           |      | {d}                   |
+|  U‑Boot   |<--=--+u‑boot.bin + u‑boot.dtb|
+|      cGRE |      |                  cFA7 |
++-----+-----+      +-----------------------+
+      |
+      | Works in S mode; contains basic file system and peripheral drivers
+      | (GMAC, UART, QSPI, USB, SDIO, etc.); load the kernel image through
+      | ETH, UART, QSPI, SDIO or USB
+      v
++------------+     +---------------------------------+
+|            |     | {d}                             |
+|Linux Kernel|<--=-+jh7100‑starfive‑visionfive‑v1.dtb|
+|       cGRE |     |                            cFA7 |
++-----+------+     +---------------------------------+
+      |
+      v
++-----------+      +------------+
+|           |      | {d}        |
+| Initramfs |<--=--+ grub.cfg   |
+|      cPNK |      |       cFA7 |
++-----------+      +------------+
+----
+endif::[]
+
+[bibliography]
+== References
+* [[[RefQuickStartQuide,1]]] https://rvspace.org/en/Product/VisionFive/Technical_Documents/VisionFive_Single_Board_Computer_Quick_Start_Guide
+* [[[RefStarfiveRepo,2]]] https://github.com/starfive-tech/VisionFive

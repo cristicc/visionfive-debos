@@ -57,7 +57,7 @@ ifndef::env-github[]
       v
 +-----------\      +----------------------+
 |           |      | {d}                  |
-|BootLoader |<--=--+ bootloader‑٭.bin.out |
+| BootLoader|<--=--+ bootloader‑٭.bin.out |
 |      cCDF |      |                 cFA7 |
 \-----+-----+      +----------------------+
       |
@@ -66,48 +66,64 @@ ifndef::env-github[]
       v
 +-----------\      +----------------------+
 |           |      | {d}                  |
-|  DDRInit  |<--=--+ ddrinit‑٭.bin.out    |
+|  DDRInit  |<--=--+  ddrinit‑٭.bin.out   |
 |      cCDF |      |                 cFA7 |
 \-----+-----+      +----------------------+
       |
-      | Initialize DDR; read fw_payload (OpenSBI + Uboot) from 0x40000 (NOR Flash)
-      | to 0x80000000 (DDR); jump to it to execute the OpenSBI
+      | Initialize DDR; read fw_payload (OpenSBI + U‑Boot) from 0x40000
+      | (NOR Flash) to 0x80000000 (DDR); jump to it to execute the OpenSBI
       v
 +-----------\      +----------------------+
 |           |      | {d}                  |
-|  OpenSBI  |<--=--+ dfw_payload.bin.out  |
+|  OpenSBI  |<--=--+  fw_payload.bin.out  |
 |      cCDF |      |                 cFA7 |
 \-----+-----+      +----------------------+
       |
       | Provide basic system calls for Linux; switch the mode from M to S;
-      | jump to 0x80020000 (DDR) to execute U-Boot
-      v
-+-----------+      +-----------------------+
-|           |      | {d}                   |
-|  U‑Boot   |<--=--+u‑boot.bin + u‑boot.dtb|
-|      cGRE |      |                  cFA7 |
-+-----+-----+      +-----------------------+
+      | jump to 0x80020000 (DDR) to execute U‑Boot
+      |
+      v            +-----------------+
++-----------+      | {d}             |
+|           |      |  ٭ u‑boot.bin   |
+|  U‑Boot   |<--=--+  ٭ u‑boot.dtb   |
+|      cGRE |      |  ٭ uEnv.txt     |
++-----+-----+      |            cFA7 |
+      |            +-----------------+
       |
       | Works in S mode; contains basic file system and peripheral drivers
-      | (GMAC, UART, QSPI, USB, SDIO, etc.); load the kernel image through
-      | ETH, UART, QSPI, SDIO or USB
+      | (GMAC, UART, QSPI, USB, SDIO, etc.); load GRUB 2 UEFI playload from
+      | SDIO to 0xa0000000 and execute it via bootefi command
       v
-+------------+     +---------------------------------+
-|            |     | {d}                             |
-|Linux Kernel|<--=-+jh7100‑starfive‑visionfive‑v1.dtb|
-|       cGRE |     |                            cFA7 |
-+-----+------+     +---------------------------------+
++-----------+      +--------------------+
+|           |      | {d}                |
+|  GRUB 2   |<--=--+ ٭ grubriscv64.efi  |
+|      cGRE |      | ٭ grub.cfg         |
++-----+-----+      |               cFA7 |
+      |            +--------------------+
       |
+      | Select one of the menu entries in grub.cfg and boot a Linux kernel
+      | image, providing also a DT blob and initramfs
+      |
+      v            +------------------------------------+
++------------+     | {d}                                |
+|            |     | ٭ vmlinuz‑6.0.0‑visionfive         |
+|Linux Kernel|<--=-+ ٭ jh7100‑starfive‑visionfive‑v1.dtb|
+|       cD54 |     | ٭ initrd.img‑6.0.0‑visionfive      |
++-----+------+     |                                cFA7|
+      |            +------------------------------------+
+      |
+      | Initialize hardware, load drivers and mount root filesystem;
+      | launch user space init process
       v
-+-----------+      +------------+
-|           |      | {d}        |
-| Initramfs |<--=--+ grub.cfg   |
-|      cPNK |      |       cFA7 |
-+-----------+      +------------+
++------------+     +--------------------+
+|    Root    |     | {d}                |
+| Filesystem |<--=-+ debian‑riscv64.img |
+|      cPNK  |     |               cFA7 |
++------------+     +--------------------+
 ----
 endif::[]
 
 [bibliography]
 == References
-* [[[RefQuickStartQuide,1]]] https://rvspace.org/en/Product/VisionFive/Technical_Documents/VisionFive_Single_Board_Computer_Quick_Start_Guide
+* [[[RefQuickStartQuide,1]]] https://doc-en.rvspace.org/VisionFive/Quick_Start_Guide/VisionFive_QSG/specifications.html
 * [[[RefStarfiveRepo,2]]] https://github.com/starfive-tech/VisionFive

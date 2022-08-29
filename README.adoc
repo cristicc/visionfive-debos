@@ -1,5 +1,4 @@
 = Evaluation of StarFive VisionFive SBC
-Cristian Ciocaltea <cristian.ciocaltea@collabora.com>
 ifdef::env-github[]
 :tip-caption: :bulb:
 :note-caption: :information_source:
@@ -115,11 +114,11 @@ ifndef::env-github[]
       | Initialize hardware, load drivers and mount root filesystem;
       | launch user space init process
       v
-+------------+     +--------------------+
-|    Root    |     | {d}                |
-| Filesystem |<--=-+ debian‑riscv64.img |
-|      cPNK  |     |               cFA7 |
-+------------+     +--------------------+
++-----------+      +--------------------+
+|           |      | {d}                |
+|  RootFS   |<--=--+ debian‑riscv64.img |
+|      cPNK |      |               cFA7 |
++-----------+      +--------------------+
 ----
 endif::[]
 

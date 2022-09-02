@@ -57,8 +57,8 @@ flash_disk() {
 
     printf "Please wait while writing '%s' to '%s'\n" "$2" "${dev_path}"
 
-    sudo dd if="$2" of=${dev_path} bs=4M status=progress oflag=sync &&
-        printf "Done.\n"
+    gzip -dc "$2" | sudo dd of=${dev_path} bs=4M conv=fsync iflag=fullblock \
+        oflag=direct status=progress && printf "Done.\n"
 }
 
 #
@@ -71,6 +71,11 @@ flash_disk() {
 
 [ -r "$1" ] || {
     printf "File '%s' doesn't exist or is not readable!\n" "$1" >&2
+    exit 1
+}
+
+command -v dialog >/dev/null || {
+    printf "Please install 'dialog' utility!\n" >&2
     exit 1
 }
 

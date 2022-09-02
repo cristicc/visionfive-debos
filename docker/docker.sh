@@ -16,6 +16,9 @@ Helper script to automate Docker container creation for building VisionFive sour
 Options:
   -h, --help        Display this help text and exit
 
+  -p, --project_dir DIR
+                    Set project directory to a custom location.
+
 Commands:
   build             Build docker image
   run               Run docker container
@@ -60,7 +63,23 @@ while [ $# -gt 0 ]; do
         print_usage
         exit 0
         ;;
+
+    -p | --project_dir)
+        shift
+        [ -n "$1" ] || {
+            print_usage
+            exit 1
+        }
+
+        PRJ_DIR=$(readlink -mn "$1")
+        [ -d "${PRJ_DIR}" ] || {
+            printf "Invalid project directory: %s\n" "${PRJ_DIR}" 2>&1
+            exit 1
+        }
+        ;;
+
     -*)
+        printf "Invalid option: %s\n" "$1" 2>&1
         print_usage
         exit 1
         ;;
@@ -80,6 +99,7 @@ while [ $# -gt 0 ]; do
         manage_container ${CONTAINER_NAME} "$@"
         exit $?
         ;;
+
     *)
         print_usage
         exit 1

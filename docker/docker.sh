@@ -24,6 +24,7 @@ Commands:
   run               Run docker container
   exec [COMMAND]    Execute a command in the container
   stop              Stop docker container
+  status            Show docker container status
 EOM
 }
 
@@ -33,6 +34,11 @@ manage_container() {
 
     local status
     status=$(docker inspect -f '{{.State.Status}}' "${container}" 2>/dev/null)
+
+    [ "${op}" = "status" ] && {
+        printf "'%s' container status: %s\n" "${container}" "${status:-N/A}"
+        return 0
+    }
 
     [ "${op}" = "stop" ] && {
         [ "${status}" = "running" ] && docker stop ${container}
@@ -95,7 +101,7 @@ while [ $# -gt 0 ]; do
         exit $?
         ;;
 
-    run | exec | stop)
+    run | exec | stop | status)
         manage_container ${CONTAINER_NAME} "$@"
         exit $?
         ;;

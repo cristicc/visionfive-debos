@@ -122,6 +122,23 @@ ifndef::env-github[]
 ----
 endif::[]
 
+== Hardware connectivity
+
+=== Terminal access via serial port
+
+Connect a FTDI TTL-232R-3V3 Cable (WIRES BLACK-GND, ORANGE-TXD, YELLOW-RXD)
+or a PL2303TA TTL-232R-3V3 Cable (WIRES BLACK-GND, GREEN-TXD, WHITE-RXD)
+or a PL2303HX TTL-232R-3V3 Cable (WIRES BLUE-GND, RED-TXD, GREEN-RXD)
+to the 40-Pin GPIO header (PIN6-GND, PIN10-RXD, PIN8-TXD).
+
+Assuming the serial adapter on the host system is available under `ttyUSB0`,
+open a serial console using either `screen` or `minicom` utilities:
+
+[source,sh]
+$ screen /dev/ttyUSB0 115200
+$ minicom -D /dev/ttyUSB0 -b 115200 -c on
+
+
 [bibliography]
 == References
 * [[[RefQuickStartQuide,1]]] https://doc-en.rvspace.org/VisionFive/Quick_Start_Guide/VisionFive_QSG/specifications.html

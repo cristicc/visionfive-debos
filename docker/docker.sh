@@ -1,4 +1,10 @@
 #!/bin/sh
+#
+# Utility script to manage a Docker image & container which provides
+# a toolchain for building software targeting the VisionFive SBC.
+#
+# Copyright (C) 2022 Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
+#
 
 SCRIPT_DIR=$(readlink -mn "$0")
 SCRIPT_DIR=${SCRIPT_DIR%/*}

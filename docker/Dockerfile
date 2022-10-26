@@ -19,7 +19,8 @@ ENV LANG C.UTF-8
 
 RUN groupadd -g ${HOST_GID} ${HOST_USER} && \
     useradd -m -u ${HOST_UID} -g ${HOST_GID} ${HOST_USER} && \
-    echo 'alias kmake="make -j $(($(nproc)+1)) O=build ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- LOCALVERSION=\"\""' >> /home/${HOST_USER}/.bash_aliases
+    echo 'alias kmake="make -j $(($(nproc)+1)) O=build ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- LOCALVERSION=\"\""' \
+        >> /home/${HOST_USER}/.bash_aliases
 
 USER ${HOST_USER}
 RUN mkdir -p ${PRJ_DIR}

@@ -126,10 +126,12 @@ endif::[]
 
 === Terminal access via serial port
 
-Connect a FTDI TTL-232R-3V3 Cable (WIRES BLACK-GND, ORANGE-TXD, YELLOW-RXD)
-or a PL2303TA TTL-232R-3V3 Cable (WIRES BLACK-GND, GREEN-TXD, WHITE-RXD)
-or a PL2303HX TTL-232R-3V3 Cable (WIRES BLUE-GND, RED-TXD, GREEN-RXD)
-to the 40-Pin GPIO header (PIN6-GND, PIN10-RXD, PIN8-TXD).
+Connect one of the USB to serial adapters to the 40-Pin GPIO header (PIN6-GND,
+PIN10-RXD, PIN8-TXD):
+
+* FTDI TTL-232R-3V3 Cable (BLACK-GND, ORANGE-TXD, YELLOW-RXD)
+* PL2303TA TTL-232R-3V3 Cable (BLACK-GND, GREEN-TXD, WHITE-RXD)
+* PL2303HX TTL-232R-3V3 Cable (BLUE-GND, RED-TXD, GREEN-RXD)
 
 Assuming the serial adapter on the host system is available under `ttyUSB0`,
 open a serial console using either `screen` or `minicom` utilities:
@@ -137,6 +139,80 @@ open a serial console using either `screen` or `minicom` utilities:
 [source,sh]
 $ screen /dev/ttyUSB0 115200
 $ minicom -D /dev/ttyUSB0 -b 115200 -c on
+
+
+== Setup development environment
+
+=== Create Docker image
+
+Use the command below to build a Docker image containing a toolchain to be used
+for building the Linux kernel for the RISC-V architecture. The image will be
+named `visionfive/cross`.
+
+[source,sh]
+----
+$ docker/docker.sh [-p WORK_DIR] build
+[...]
+Successfully built 801f692ad877
+Successfully tagged visionfive/cross:latest
+
+$ docker images visionfive/cross
+REPOSITORY         TAG       IMAGE ID       CREATED         SIZE
+visionfive/cross   latest    801f692ad877   2 minutes ago   626MB
+----
+
+The optional `-p` or `--project-dir` parameter allows to map a path in the host
+system to the guest environment. By default it is the current project root
+directory.
+
+
+=== Run Docker container
+
+The `docker/docker.sh` script above can be used to quickly run a build container
+or execute commands inside the development environment:
+
+[source,sh]
+----
+$ docker/docker.sh --help
+Usage: docker.sh [OPTION]... COMMAND
+Helper script to automate Docker container creation for building VisionFive sources.
+
+Options:
+  -h, --help        Display this help text and exit
+
+  -p, --project_dir DIR
+                    Set project directory to a custom location.
+
+Commands:
+  build             Build docker image
+  run               Run docker container
+  exec [COMMAND]    Execute a command in the container
+  stop              Stop docker container
+  status            Show docker container status
+----
+
+Pass the `run` command to instantiate a container named `visionfive-build` and
+provide an interactive console terminal. Note the project content is made
+available in the container under the path specified on image creation.
+
+[source,sh]
+----
+$ docker/docker.sh run
+user@visionfive-build:~/visionfive-debos$ ls
+LICENSE  README.adoc  debos  docker  docs  tools
+----
+
+You may check the container status from a host console terminal:
+
+[source,sh]
+----
+$ docker/docker.sh status
+'visionfive-build' container status: running
+
+$ docker ps
+CONTAINER ID   IMAGE              COMMAND       CREATED          STATUS          PORTS     NAMES
+f5524864bb34   visionfive/cross   "/bin/bash"   11 minutes ago   Up 11 minutes             visionfive-build
+----
 
 
 [bibliography]

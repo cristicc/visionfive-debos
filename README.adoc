@@ -122,6 +122,7 @@ ifndef::env-github[]
 ----
 endif::[]
 
+
 == Hardware connectivity
 
 === Terminal access via serial port
@@ -212,6 +213,146 @@ $ docker/docker.sh status
 $ docker ps
 CONTAINER ID   IMAGE              COMMAND       CREATED          STATUS          PORTS     NAMES
 f5524864bb34   visionfive/cross   "/bin/bash"   11 minutes ago   Up 11 minutes             visionfive-build
+----
+
+
+== Build Linux kernel
+
+The build environment provides the `kmake` alias which can be used as a helper
+to configure and build the kernel sources:
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos$ alias kmake
+alias kmake='make -j 9 O=build ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- LOCALVERSION=""'
+----
+
+=== Clone linux repositories
+
+Let's create the `work` directory for cloning any git repositories required by
+the project:
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos$ mkdir work && cd work
+user@visionfive-build:~/visionfive-debos/work$
+----
+
+Now clone `linux` Git repository and, optionally, also checkout `linux-next` in
+a separate git working tree:
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos/work$ git clone -o linux git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+user@visionfive-build:~/visionfive-debos/work$ cd linux
+# Skip the commands below if linux-next is not of interest.
+user@visionfive-build:~/visionfive-debos/work/linux$ git remote add linux-next git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+user@visionfive-build:~/visionfive-debos/work/linux$ git fetch linux-next
+user@visionfive-build:~/visionfive-debos/work/linux$ git worktree add --checkout -b linux-next ../linux-next next-20221028
+----
+
+It might be useful to have quick access to the downstream kernel repository, as
+well:
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos/work/linux$ git remote add starfive git@github.com:starfive-tech/linux.git
+user@visionfive-build:~/visionfive-debos/work/linux$ git fetch starfive
+user@visionfive-build:~/visionfive-debos/work/linux$ git worktree add --checkout -b linux-starfive ../linux-starfive starfive/visionfive
+----
+
+
+=== Patch sources
+
+To enable support for the StarFive VisionFive SBC in mainline kernel, it's
+necessary to apply a few patches. Note a patch series has been already submitted
+upstream and should be merged soon:
+
+https://lore.kernel.org/all/20221017210542.979051-1-cristian.ciocaltea@collabora.com/
+
+The patch series can be easily downloaded and applied using the `b4` utility:
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos/work/linux$ b4 am -l 20221017210542.979051-1-cristian.ciocaltea@collabora.com
+user@visionfive-build:~/visionfive-debos/work/linux$ git am ./v4_20221018_cristian_ciocaltea_enable_initial_support_for_starfive_visionfive_v1_sbc.mbx
+----
+
+Alternatively, the patches are also stored in this project repository, so one
+may apply them by running:
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos/work/linux$ git am --empty=drop ../../linux/patches/*.patch
+----
+
+
+=== Configure target board
+
+While still in the `work/linux` folder, let's create a subfolder `build` for
+configuring and compiling the kernel using the already provided `defconfig`.
+This is a minimal configuration to get StartFive VisionFive SBC booting with
+the mainline kernel.
+
+[TIP]
+The `kmake` alias already passes the name of the `build` subfolder to `make`
+via `O=build` argument.
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos/work/linux$ mkdir -p build
+user@visionfive-build:~/visionfive-debos/work/linux$ cp ../../linux/visionfive_defconfig build/.config
+user@visionfive-build:~/visionfive-debos/work/linux$ kmake olddefconfig
+----
+
+Optionally adjust the configuration by calling `kmake menuconfig`.
+
+
+=== Build kernel image and device tree blob
+
+Having `.config` file ready, it's time to start compiling the sources.
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos/work/linux$ kmake
+[...]
+  DTC     arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dtb
+[...]
+  LD      vmlinux
+  NM      System.map
+  SORTTAB vmlinux
+  OBJCOPY arch/riscv/boot/Image
+  GZIP    arch/riscv/boot/Image.gz
+  Kernel: arch/riscv/boot/Image.gz is ready
+make[1]: Leaving directory '~/visionfive-debos/work/linux/build'
+----
+
+[TIP]
+--
+By default, `kmake` is configured to use all available processing units, plus
+one. To set it to a custom value, e.g. `2`, it's necessary to update
+`docker/Dockerfile` and rebuild the container:
+
+[source,sh]
+----
+$ sed -i 's/$(($(nproc)+1))/2/' docker/Dockerfile
+$ docker/docker.sh build
+----
+--
+
+Generate Debian packages and, optionally, install the kernel image and DTB to
+`build/dist` folder:
+
+[source,sh]
+----
+user@visionfive-build:~/visionfive-debos/work/linux$ kmake bindeb-pkg
+user@visionfive-build:~/visionfive-debos/work/linux$ ls -1 *.deb
+linux-image-6.1.0-rc1-visionfive_6.1.0-rc1-visionfive-1_riscv64.deb
+linux-libc-dev_6.1.0-rc1-visionfive-1_riscv64.deb
+
+# Local install (optionall)
+user@visionfive-build:~/visionfive-debos/work/linux$ mkdir build/dist
+user@visionfive-build:~/visionfive-debos/work/linux$ kmake INSTALL_PATH=dist zinstall dtbs_install
 ----
 
 

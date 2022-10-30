@@ -199,7 +199,7 @@ available in the container under the path specified on image creation.
 [source,sh]
 ----
 $ docker/docker.sh run
-user@visionfive-build:~/visionfive-debos$ ls
+visionfive-build:~/visionfive-debos$ ls
 LICENSE  README.adoc  debos  docker  docs  tools
 ----
 
@@ -223,7 +223,7 @@ to configure and build the kernel sources:
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos$ alias kmake
+visionfive-build:~/visionfive-debos$ alias kmake
 alias kmake='make -j 9 O=build ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- LOCALVERSION=""'
 ----
 
@@ -234,8 +234,8 @@ the project:
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos$ mkdir work && cd work
-user@visionfive-build:~/visionfive-debos/work$
+visionfive-build:~/visionfive-debos$ mkdir work && cd work
+visionfive-build:~/visionfive-debos/work$
 ----
 
 Now clone `linux` Git repository and, optionally, also checkout `linux-next` in
@@ -243,12 +243,12 @@ a separate git working tree:
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos/work$ git clone -o linux git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-user@visionfive-build:~/visionfive-debos/work$ cd linux
+visionfive-build:~/visionfive-debos/work$ git clone -o linux git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+visionfive-build:~/visionfive-debos/work$ cd linux
 # Skip the commands below if linux-next is not of interest.
-user@visionfive-build:~/visionfive-debos/work/linux$ git remote add linux-next git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-user@visionfive-build:~/visionfive-debos/work/linux$ git fetch linux-next
-user@visionfive-build:~/visionfive-debos/work/linux$ git worktree add --checkout -b linux-next ../linux-next next-20221028
+visionfive-build:~/visionfive-debos/work/linux$ git remote add linux-next git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+visionfive-build:~/visionfive-debos/work/linux$ git fetch linux-next
+visionfive-build:~/visionfive-debos/work/linux$ git worktree add --checkout -b linux-next ../linux-next next-20221028
 ----
 
 It might be useful to have quick access to the downstream kernel repository, as
@@ -256,9 +256,9 @@ well:
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos/work/linux$ git remote add starfive git@github.com:starfive-tech/linux.git
-user@visionfive-build:~/visionfive-debos/work/linux$ git fetch starfive
-user@visionfive-build:~/visionfive-debos/work/linux$ git worktree add --checkout -b linux-starfive ../linux-starfive starfive/visionfive
+visionfive-build:~/visionfive-debos/work/linux$ git remote add starfive git@github.com:starfive-tech/linux.git
+visionfive-build:~/visionfive-debos/work/linux$ git fetch starfive
+visionfive-build:~/visionfive-debos/work/linux$ git worktree add --checkout -b linux-starfive ../linux-starfive starfive/visionfive
 ----
 
 
@@ -274,8 +274,8 @@ The patch series can be easily downloaded and applied using the `b4` utility:
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos/work/linux$ b4 am -l 20221017210542.979051-1-cristian.ciocaltea@collabora.com
-user@visionfive-build:~/visionfive-debos/work/linux$ git am ./v4_20221018_cristian_ciocaltea_enable_initial_support_for_starfive_visionfive_v1_sbc.mbx
+visionfive-build:~/visionfive-debos/work/linux$ b4 am -l 20221017210542.979051-1-cristian.ciocaltea@collabora.com
+visionfive-build:~/visionfive-debos/work/linux$ git am ./v4_20221018_cristian_ciocaltea_enable_initial_support_for_starfive_visionfive_v1_sbc.mbx
 ----
 
 Alternatively, the patches are also stored in this project repository, so one
@@ -283,7 +283,7 @@ may apply them by running:
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos/work/linux$ git am --empty=drop ../../linux/patches/*.patch
+visionfive-build:~/visionfive-debos/work/linux$ git am --empty=drop ../../linux/patches/*.patch
 ----
 
 
@@ -300,9 +300,9 @@ via `O=build` argument.
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos/work/linux$ mkdir -p build
-user@visionfive-build:~/visionfive-debos/work/linux$ cp ../../linux/visionfive_defconfig build/.config
-user@visionfive-build:~/visionfive-debos/work/linux$ kmake olddefconfig
+visionfive-build:~/visionfive-debos/work/linux$ mkdir -p build
+visionfive-build:~/visionfive-debos/work/linux$ cp ../../linux/visionfive_defconfig build/.config
+visionfive-build:~/visionfive-debos/work/linux$ kmake olddefconfig
 ----
 
 Optionally adjust the configuration by calling `kmake menuconfig`.
@@ -314,7 +314,7 @@ Having `.config` file ready, it's time to start compiling the sources.
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos/work/linux$ kmake
+visionfive-build:~/visionfive-debos/work/linux$ kmake
 [...]
   DTC     arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dtb
 [...]
@@ -345,14 +345,14 @@ Generate Debian packages and, optionally, install the kernel image and DTB to
 
 [source,sh]
 ----
-user@visionfive-build:~/visionfive-debos/work/linux$ kmake bindeb-pkg
-user@visionfive-build:~/visionfive-debos/work/linux$ ls -1 *.deb
+visionfive-build:~/visionfive-debos/work/linux$ kmake bindeb-pkg
+visionfive-build:~/visionfive-debos/work/linux$ ls -1 *.deb
 linux-image-6.1.0-rc1-visionfive_6.1.0-rc1-visionfive-1_riscv64.deb
 linux-libc-dev_6.1.0-rc1-visionfive-1_riscv64.deb
 
 # Local install (optionall)
-user@visionfive-build:~/visionfive-debos/work/linux$ mkdir build/dist
-user@visionfive-build:~/visionfive-debos/work/linux$ kmake INSTALL_PATH=dist zinstall dtbs_install
+visionfive-build:~/visionfive-debos/work/linux$ mkdir build/dist
+visionfive-build:~/visionfive-debos/work/linux$ kmake INSTALL_PATH=dist zinstall dtbs_install
 ----
 
 

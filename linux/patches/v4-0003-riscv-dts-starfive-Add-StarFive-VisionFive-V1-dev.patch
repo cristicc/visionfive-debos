@@ -1,0 +1,57 @@
+From e2707810052b1e59554178ebfe05183f953c320e Mon Sep 17 00:00:00 2001
+From: Cristian Ciocaltea <cristian.ciocaltea@collabora.com>
+Date: Thu, 1 Sep 2022 14:25:54 +0300
+Subject: [PATCH v4 3/3] riscv: dts: starfive: Add StarFive VisionFive V1
+ device tree
+
+Add initial device tree for the StarFive VisionFive V1 SBC [1], which
+is similar with the already supported BeagleV Starlight Beta board,
+both being based on the StarFive JH7100 SoC.
+
+[1] https://github.com/starfive-tech/VisionFive
+
+Signed-off-by: Cristian Ciocaltea <cristian.ciocaltea@collabora.com>
+Reviewed-by: Conor Dooley <conor.dooley@microchip.com>
+---
+ arch/riscv/boot/dts/starfive/Makefile         |  2 +-
+ .../jh7100-starfive-visionfive-v1.dts         | 20 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+ create mode 100644 arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dts
+
+diff --git a/arch/riscv/boot/dts/starfive/Makefile b/arch/riscv/boot/dts/starfive/Makefile
+index 0ea1bc15ab30..039c143cba33 100644
+--- a/arch/riscv/boot/dts/starfive/Makefile
++++ b/arch/riscv/boot/dts/starfive/Makefile
+@@ -1,2 +1,2 @@
+ # SPDX-License-Identifier: GPL-2.0
+-dtb-$(CONFIG_SOC_STARFIVE) += jh7100-beaglev-starlight.dtb
++dtb-$(CONFIG_SOC_STARFIVE) += jh7100-beaglev-starlight.dtb jh7100-starfive-visionfive-v1.dtb
+diff --git a/arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dts b/arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dts
+new file mode 100644
+index 000000000000..e82af72f1aaf
+--- /dev/null
++++ b/arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dts
+@@ -0,0 +1,20 @@
++// SPDX-License-Identifier: GPL-2.0 OR MIT
++/*
++ * Copyright (C) 2021 StarFive Technology Co., Ltd.
++ * Copyright (C) 2021 Emil Renner Berthing <kernel@esmil.dk>
++ */
++
++/dts-v1/;
++#include "jh7100-common.dtsi"
++#include <dt-bindings/gpio/gpio.h>
++
++/ {
++	model = "StarFive VisionFive V1";
++	compatible = "starfive,visionfive-v1", "starfive,jh7100";
++
++	gpio-restart {
++		compatible = "gpio-restart";
++		gpios = <&gpio 63 GPIO_ACTIVE_HIGH>;
++		priority = <224>;
++	};
++};
+-- 
+2.38.0
+

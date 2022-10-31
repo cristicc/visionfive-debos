@@ -1,0 +1,94 @@
+{{- $mirror := or .mirror "https://deb.debian.org/debian-ports" -}}
+{{- $suite := or .suite "unstable" -}}
+{{- $kernel := or .kernel "linux-image-riscv64" -}}
+{{- $cmdline := or .cmdline " rootwait ro fsck.mode=auto fsck.repair=yes console=ttyS1,115200" -}}
+{{- $image := or .image "debian-riscv64.img" -}}
+{{- $use_rootfs_base := or .use_rootfs_base "no" -}}
+{{- $create_image := or .create_image "yes" -}}
+
+# VisionFive SBC
+architecture: riscv64
+
+actions:
+  {{ if ne $use_rootfs_base "yes" }}
+  - action: debootstrap
+    suite: {{ $suite }}
+    components:
+      - main
+    mirror: {{ $mirror }}
+    variant: minbase
+    check-gpg: false
+# TODO: fix keyring
+#    keyring-package: debian-ports-archive-keyring
+#    keyring-file: /usr/share/keyrings/debian-ports-archive-keyring.gpg
+
+  - action: apt
+    description: Install extra packages
+    packages:
+      - adduser
+      - apt-utils
+      - bash-completion
+      - i2c-tools
+      - initramfs-tools
+      - less
+      - libnss-resolve
+      - openssh-server
+      - rsync
+      - sudo
+      - systemd-sysv
+      - systemd-timesyncd
+      - vim-tiny
+  {{ end }}
+
+  {{ if eq $use_rootfs_base "create" }}
+  - action: pack
+    file: rootfs-base.tar
+    compression: none
+  {{ end }}
+
+  {{ if eq $use_rootfs_base "yes" }}
+  - action: unpack
+    file: rootfs-base.tar
+  {{ end }}
+
+  {{ if eq $create_image "yes" }}
+  - action: run
+    description: Setup OS for VisionFive
+    chroot: true
+    script: scripts/setup-visionfive.sh
+
+  - action: image-partition
+    imagename: {{ $image }}
+    imagesize: 900MB
+    partitiontype: gpt
+    mountpoints:
+      - mountpoint: /
+        partition: root
+      - mountpoint: /boot/efi
+        partition: efi
+        options: [ x-systemd.automount ]
+    partitions:
+      - name: unused
+        fs: none
+        start: 0%
+        end: 16MB
+      - name: efi
+        fs: fat32
+        start: 16MB
+        end: 96MB
+      - name: root
+        fs: ext4
+        start: 96MB
+        end: 100%
+        flags: [ boot ]
+
+  - action: filesystem-deploy
+    description: Deploying filesystem onto image
+    setup-kernel-cmdline: true
+    append-kernel-cmdline: {{ $cmdline }}
+
+  - action: run
+    description: Compressing final image
+    postprocess: true
+    command: gzip -f {{ $image }}
+  {{ end }}

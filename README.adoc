@@ -350,7 +350,7 @@ visionfive-build:~/visionfive-debos/work/linux$ ls -1 *.deb
 linux-image-6.1.0-rc1-visionfive_6.1.0-rc1-visionfive-1_riscv64.deb
 linux-libc-dev_6.1.0-rc1-visionfive-1_riscv64.deb
 
-# Local install (optionall)
+# Local install (optional)
 visionfive-build:~/visionfive-debos/work/linux$ mkdir build/dist
 visionfive-build:~/visionfive-debos/work/linux$ kmake INSTALL_PATH=dist zinstall dtbs_install
 ----
@@ -367,11 +367,11 @@ container:
 ----
 $ cd work/
 $ git clone git://git.savannah.gnu.org/grub.git
-# TODO: check if the out-of-tree patches below are still needed
+# TODO: Drop the commands below when upstream support is complete
 $ cd grub
 $ git remote add tekkamanninja https://github.com/tekkamanninja/grub.git
 $ git fetch tekkamanninja
-$ git checkout tekkamanninja/riscv_devel_Nikita_V3
+$ git switch -C riscv_devel tekkamanninja/riscv_devel_Nikita_V3
 ----
 
 === Build GRUB2 EFI image

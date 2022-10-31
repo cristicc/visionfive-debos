@@ -2,7 +2,7 @@
 
 set -e
 
-SCRIPT_DIR=$(realpath -z "$0")
+SCRIPT_DIR=$(realpath "$0")
 SCRIPT_DIR=${SCRIPT_DIR%/*}
 
 INSTALL_DIR=${SCRIPT_DIR}/../work/debos

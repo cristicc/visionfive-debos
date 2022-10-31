@@ -2,18 +2,12 @@
 
 set -e
 
-export NEEDRESTART_MODE=a
-export DEBIAN_FRONTEND=noninteractive
-export DEBIAN_PRIORITY=critical
-
 # Clean downloaded packages
 #apt-get clean -qy
 
 # Install kernel packages
 echo "Installing kernel packages"
 apt-get install -qy --reinstall /tmp/script/bin/linux-*.deb
-# TODO: should not be necessary to manually call update-initramfs
-#update-initramfs -c -k all
 
 # Configure u-boot
 #
@@ -52,7 +46,6 @@ netmask=255.255.255.0
 EOF
 
 # Configure GRUB
-# TODO: generate menu entries based on kernel images found in /boot
 echo "Configuring GRUB"
 
 cat >/boot/grub.cfg <<EOF
@@ -62,13 +55,19 @@ set timeout=2
 
 set debug="linux,loader,mm"
 set term="vt100"
-
-menuentry 'Debian kernel 6.1 for visionfive' {
-    linux /boot/vmlinuz-6.1.0-rc1-visionfive root=/dev/mmcblk0p3 rw console=tty0 console=ttyS0,115200 earlycon rootwait stmmaceth=chain_mode:1 selinux=0 LANG=en_US.UTF-8
-    devicetree /usr/lib/linux-image-6.1.0-rc1-visionfive/starfive/jh7100-starfive-visionfive-v1.dtb
-    initrd /boot/initrd.img-6.1.0-rc1-visionfive
-}
 EOF
+
+for ver in /boot/vmlinuz-*; do
+    ver=${ver##*vmlinuz-}
+    cat >>/boot/grub.cfg <<EOB
+
+menuentry 'Debian kernel ${ver}' {
+    linux /boot/vmlinuz-${ver} root=/dev/mmcblk0p3 rw console=tty0 console=ttyS0,115200 earlycon stmmaceth=chain_mode:1 selinux=0 LANG=en_US.UTF-8
+    devicetree /usr/lib/linux-image-${ver}/starfive/jh7100-starfive-visionfive-v1.dtb
+    initrd /boot/initrd.img-${ver}
+}
+EOB
+done
 
 # Copy GRUB EFI binary
 mkdir -p /boot/efi/EFI/boot

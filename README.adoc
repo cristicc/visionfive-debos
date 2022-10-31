@@ -390,7 +390,161 @@ Successfully built GRUB2 image: ~/visionfive-debos/grub/dist/grubriscv64.efi
 ----
 
 
+== Prepare the OS disk image and boot the device
+
+For this task we are going to use the _debos_ utility <<RefDebos>>, which
+simplifies the creation of various Debian-based OS images.
+
+_debos_ requires a YAML file as input, which should provide a list of actions
+to be executed sequentially.
+
+=== Generate the image file
+
+From the project root directory, run the command below in a host console:
+
+[source,sh]
+----
+$ debos/debos.sh
+Using existing rootfs base
+Syncing build resources
+ cd+++++++++ scripts/
+ >f+++++++++ scripts/setup-visionfive.sh
+ >f+++++++++ linux-image-6.1.0-rc1-visionfive_6.1.0-rc1-visionfive-1_riscv64.deb
+ >f+++++++++ grubriscv64.efi
+Running /debos --artifactdir /recipes --template-var use_rootfs_base:"yes" [...]
+[...]
+2022/10/31 16:57:17 ==== Setup OS for VisionFive ====
+2022/10/31 16:57:18 setup-visionfive.sh | Installing kernel packages
+[...]
+2022/10/31 16:57:23 setup-visionfive.sh | Setting up linux-image-6.1.0-rc1-visionfive (6.1.0-rc1-visionfive-1) ...
+2022/10/31 16:57:23 setup-visionfive.sh | update-initramfs: Generating /boot/initrd.img-6.1.0-rc1-visionfive
+[...]
+2022/10/31 16:57:32 setup-visionfive.sh | Configuring U-Boot
+2022/10/31 16:57:32 setup-visionfive.sh | Configuring GRUB
+2022/10/31 16:57:32 setup-visionfive.sh | Configuring system
+[...]
+2022/10/31 16:57:32 ==== image-partition ====
+[...]
+2022/10/31 16:57:32 Formatting partition 3 | Creating filesystem with 196284 4k blocks and 49152 inodes
+[...]
+2022/10/31 16:57:32 ==== Deploying filesystem onto image ====
+2022/10/31 16:57:33 Setting up fstab
+[...]
+2022/10/31 16:57:33 ==== Compressing final image ====
+2022/10/31 16:57:46 ==== Recipe done ====
+Created disk img: ~/visionfive-debos/work/debos/debian-riscv64.img.gz
+----
+
+
+=== Prepare a bootable uSD card
+
+Insert the micro SD card in a USB card reader attached to the host system and
+run the following command, assuming the current working directory is still the
+project root folder:
+
+[source,sh]
+----
+$ IMAGE_FILE=work/debos/debian-riscv64.img.gz
+$ tools/prepare-sd-card.sh ${IMAGE_FILE}
+----
+
+A dialog box should pop up and show a list of all removable USB drives currently
+accessible:
+
+image::usb-drive-select.png[]
+
+[WARNING]
+--
+Make sure to double check your choice before proceeding since the following
+operation will permanently destroy any existing data on the selected device!
+--
+
+Select the target drive and press `OK` to start flashing the device using the
+image file we have just created:
+
+[source,sh]
+----
+Please wait while writing 'work/debos/debian-riscv64.img.gz' to '/dev/sda'
+[...]
+900000256 bytes (900 MB, 858 MiB) copied, 27.3587 s, 32.9 MB/s
+Done.
+----
+
+[TIP]
+--
+If you know exactly the path to the removable device, use may use the following
+command to directly write the image. Just replace `/path/to/device` with your
+specific destination path (e.g. `/dev/sda`):
+
+[source,sh]
+----
+$ gzip -dc "${IMAGE_FILE}" | sudo dd bs=4M of=/path/to/device conv=fsync iflag=fullblock oflag=direct status=progress
+----
+--
+
+
+=== Boot VisionFive SBC
+
+Insert the uSD card into the board and plug the power supply. Check your serial
+console for the boot messages:
+
+[source,sh]
+----
+$ screen /dev/ttyUSB0 115200
+[...]
+U-Boot 2022.04-rc2-VisionFive (Mar 07 2022 - 21:12:22 +0800)StarFive
+
+CPU:   rv64imafdc
+Model: StarFive VisionFive V1
+DRAM:  8 GiB
+[...]
+
+Welcome to GRUB!
+[...]
+                          GNU GRUB  version 2.11
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │*Debian kernel 6.1 for visionfive                                           │
+ │                                                                            │
+ │                                                                            │
+ └────────────────────────────────────────────────────────────────────────────┘
+      Use the ▲ and ▼ keys to select which entry is highlighted.
+
+  Booting `Debian kernel 6.1 for visionfive'
+
+loader/efi/linux.c:81:linux: UEFI stub kernel:                                  [ vmlinuz-6.1.0-rc1-vi  5.92MiB  100%  0.22B/s ]
+[...]
+loader/efi/linux.c:462:linux: kernel @ 0xfd10c000                               [ vmlinuz-6.1.0-rc1-vi  5.92MiB  100%  13.09TiB/s ]
+loader/efi/linux.c:381:linux: LoadFile2 initrd loading protocol installed       [ jh7100-starfive-visi  6.13KiB  100%  231.70B/s ]
+loader/efi/fdt.c:63:linux: allocating 7305 bytes for fdt
+loader/efi/linux.c:181:linux: linux command line: 'BOOT_IMAGE=/boot/vmlinuz-6.1.0-rc1-visionfive root=/dev/mmcblk0p3 rw console=tty0
+[...]
+EFI stub: Booting Linux Kernel...
+loader/efi/linux.c:333:linux: Providing initrd via LOAD_FILE2_PROTOCOL
+EFI stub: Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path            [ initrd.img-6.1.0-rc1  4.18MiB  100%  1.94MiB/s ]
+EFI stub: Using DTB from configuration table
+[...]
+Linux version 6.1.0-rc1-visionfive (riscv64-linux-gnu-gcc (Debian 10.2.1-6)     [...]
+[...]
+Machine model: StarFive VisionFive V1
+[...]
+Unpacking initramfs...
+[...]
+Run /init as init process
+Loading, please wait...
+Starting systemd-udevd version 252~rc3-2
+[...]
+Gave up waiting for root file system device.
+[...]
+(initramfs) uname -a
+Linux (none) 6.1.0-rc1-visionfive #1 SMP Sun Oct 30 19:45:43 UTC 2022 riscv64 riscv64
+----
+
+Note there is no driver for the eMMC storage in the mainline kernel 6.1, hence
+the rootfs cannot be mounted.
+
+
 [bibliography]
 == References
 * [[[RefQuickStartQuide,1]]] https://doc-en.rvspace.org/VisionFive/Quick_Start_Guide/VisionFive_QSG/specifications.html
 * [[[RefStarfiveRepo,2]]] https://github.com/starfive-tech/VisionFive
+* [[[RefDebos,3]]] https://github.com/go-debos/debos

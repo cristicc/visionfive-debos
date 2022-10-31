@@ -356,6 +356,40 @@ visionfive-build:~/visionfive-debos/work/linux$ kmake INSTALL_PATH=dist zinstall
 ----
 
 
+== Build GRUB2 for RISCV64 architecture
+
+=== Clone GRUB2 repositories
+
+This can be done either from a console on the host system or on the build
+container:
+
+[source,sh]
+----
+$ cd work/
+$ git clone git://git.savannah.gnu.org/grub.git
+# TODO: check if the out-of-tree patches below are still needed
+$ cd grub
+$ git remote add tekkamanninja https://github.com/tekkamanninja/grub.git
+$ git fetch tekkamanninja
+$ git checkout tekkamanninja/riscv_devel_Nikita_V3
+----
+
+=== Build GRUB2 EFI image
+
+Run the following commands from the build container:
+
+[source,sh]
+----
+visionfive-build:~$ cd visionfive-debos/work/grub
+visionfive-build:~/visionfive-debos/work/grub$ ../../grub/build.sh
+./bin/grub-mkimage: info: reading ~/visionfive-debos/grub/default.cfg.
+./bin/grub-mkimage: info: kernel_img=0x7f1179bd4010, kernel_size=0x1a000.
+./bin/grub-mkimage: info: the core size is 0x2e75f0.
+./bin/grub-mkimage: info: writing 0x2ea000 bytes.
+Successfully built GRUB2 image: ~/visionfive-debos/grub/dist/grubriscv64.efi
+----
+
+
 [bibliography]
 == References
 * [[[RefQuickStartQuide,1]]] https://doc-en.rvspace.org/VisionFive/Quick_Start_Guide/VisionFive_QSG/specifications.html

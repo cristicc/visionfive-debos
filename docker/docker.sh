@@ -54,6 +54,7 @@ manage_container() {
     [ -z "${status}" ] &&
         exec docker run --name ${container} -h ${container} \
             --mount "type=bind,source=${PRJ_DIR},destination=${PRJ_DIR}" \
+            --log-driver none \
             -it ${IMAGE_NAME} "$@"
 
     [ "${status}" = "running" ] ||

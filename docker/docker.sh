@@ -1,10 +1,10 @@
 #!/bin/sh
-#
-# Utility script to manage a Docker image & container which provides
-# a toolchain for building software targeting the VisionFive SBC.
+# SPDX-License-Identifier: LGPL-2.1-or-later
 #
 # Copyright (C) 2022 Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
 #
+# Utility script to manage a Docker image & container which provides
+# a toolchain for building software targeting the VisionFive SBC.
 
 SCRIPT_DIR=$(readlink -mn "$0")
 SCRIPT_DIR=${SCRIPT_DIR%/*}
@@ -122,3 +122,5 @@ while [ $# -gt 0 ]; do
 done
 
 print_usage
+
+# vim: et sts=4 sw=4

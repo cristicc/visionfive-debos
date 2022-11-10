@@ -1,11 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Copyright (C) 2021-2022 Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
 #
 # Utility script to flash SD cards for booting VisionFive SBC.
 #
 # Usage: ./prepare-sd-card.sh /path/to/disk/image/file
-#
-# Copyright (C) 2022 Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
-#
 
 # Retrieve script path
 SCRIPT_DIR=$(dirname "$(readlink -mn "$0")")
@@ -96,3 +96,5 @@ clear
 }
 
 flash_disk "${CHOICE}" "$1"
+
+# vim: et sts=4 sw=4

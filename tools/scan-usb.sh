@@ -1,4 +1,7 @@
 #!/bin/sh
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Copyright (C) 2021-2022 Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
 #
 # Utility script to scan for attached USB storage devices and/or
 # prompt the user to choose one of the available drives.
@@ -8,9 +11,6 @@
 # - SC2059: Don't use variables in the printf format string. Use printf "..%s.." "$foo".
 # - SC2162: read without -r will mangle backslashes
 # shellcheck disable=SC2034,SC2059,SC2162
-#
-# Copyright (C) 2021-2022 Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
-#
 
 #
 # Prints messages on stderr.
@@ -192,3 +192,5 @@ if [ -n "${DO_SCAN}" ]; then
 elif [ -n "${DO_PROMPT}" ]; then
     select_drives
 fi
+
+# vim: et sts=4 sw=4

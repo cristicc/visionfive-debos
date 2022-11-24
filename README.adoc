@@ -286,6 +286,12 @@ may apply them by running:
 visionfive-build:~/visionfive-debos/work/linux$ git am --empty=drop ../../linux/patches/*.patch
 ----
 
+[NOTE]
+The patches have been merged in
+https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/log/?qt=range&q=bd51ad582163b6532ea23a353eebd180472b2a5a~1..ab8ec07922541d675db7105fd8174bc18f8bec64[linux-next].
+Hence, if building the `next-20221114` kernel or newer, there is no need to
+apply the above mentioned patches anymore.
+
 
 === Configure target board
 

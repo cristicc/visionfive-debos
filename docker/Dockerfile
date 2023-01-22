@@ -1,7 +1,7 @@
 FROM debian:11.2-slim
 
-RUN apt update && apt upgrade -y && \
-    apt install -y autoconf autopoint autotools-dev \
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y autoconf autopoint autotools-dev \
         b4 bash-completion bc bison cpio \
         dpkg-dev dwarves flex gcc gcc-riscv64-linux-gnu \
         git gettext kmod libelf-dev libncurses-dev libssl-dev \

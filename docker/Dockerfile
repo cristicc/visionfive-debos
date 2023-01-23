@@ -17,15 +17,21 @@ ARG HOST_UID=1000
 ARG HOST_GID=1000
 ARG HOST_UUCP_GID=986
 ARG PRJ_DIR=/home/${HOST_USER}/visionfive
+ARG TFTPD_PORT=10069
 
 ENV PATH=${PATH}:/home/${HOST_USER}/local/bin
 ENV LANG C.UTF-8
+
+RUN setcap 'cap_net_raw,cap_net_bind_service,cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap=+ep' /bin/busybox
+RUN setcap 'cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_setfcap=+ep' /usr/sbin/in.tftpd
 
 RUN groupadd -g ${HOST_GID} ${HOST_USER} && \
     groupmod -g ${HOST_UUCP_GID} uucp && \
     useradd -m -u ${HOST_UID} -g ${HOST_GID} -G uucp ${HOST_USER} && \
     echo 'alias kmake="make -j $(($(nproc)+1)) O=build ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- LOCALVERSION=\"\""' \
         >> /home/${HOST_USER}/.bash_aliases
+
+EXPOSE ${TFTPD_PORT}/udp
 
 USER ${HOST_USER}
 RUN mkdir -p ${PRJ_DIR}

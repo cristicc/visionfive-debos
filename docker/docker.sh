@@ -10,6 +10,7 @@ SCRIPT_DIR=$(readlink -mn "$0")
 SCRIPT_DIR=${SCRIPT_DIR%/*}
 
 PRJ_DIR=$(readlink -mn "${SCRIPT_DIR}/..")
+PRJ_TFTPD_PORT=10069
 
 #
 # Help
@@ -20,17 +21,19 @@ Usage: ${0##*/} [OPTION]... COMMAND
 Helper script to automate Docker container creation for building VisionFive sources.
 
 Options:
-  -h, --help        Display this help text and exit
+  -h, --help        Display this help text and exit.
 
   -p, --project_dir DIR
                     Set project directory to a custom location.
 
 Commands:
-  build             Build docker image
-  run               Run docker container
-  exec [COMMAND]    Execute a command in the container
-  stop              Stop docker container
-  status            Show docker container status
+  build             Build docker image.
+  run [STTY]        Run docker container.
+                    Optionally, a host serial device STTY can be added to the
+                    container. This will also start a TFTP server.
+  exec [COMMAND]    Execute a command in the container.
+  stop              Stop docker container.
+  status            Show docker container status.
 EOM
 }
 
@@ -51,10 +54,23 @@ manage_container() {
         return 0
     }
 
+    local run_args run_cmd
+    [ "${op}" = "run" ] && [ -n "$1" ] && {
+        run_args="--device=$1 -p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
+        # run_args="-p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
+        run_cmd="busybox syslogd -n -O /dev/stdout &"
+        run_cmd="${run_cmd} mkdir -p ${PRJ_DIR}/work &&"
+        run_cmd="${run_cmd} /usr/sbin/in.tftpd -Lvvv --user cristi --address 0.0.0.0:${PRJ_TFTPD_PORT} --secure -4 ${PRJ_DIR}/work &"
+        run_cmd="${run_cmd} exec bash"
+
+        set -- /bin/sh -c "${run_cmd}"
+    }
+
     [ -z "${status}" ] &&
         exec docker run --name ${container} -h ${container} \
             --mount "type=bind,source=${PRJ_DIR},destination=${PRJ_DIR}" \
-            --log-driver none \
+            ${run_args} \
+            --log-driver local --log-opt max-size=10m --log-opt max-file=3 \
             -it ${IMAGE_NAME} "$@"
 
     [ "${status}" = "running" ] ||
@@ -105,6 +121,7 @@ while [ $# -gt 0 ]; do
             --build-arg HOST_GID=$(id -g) \
             --build-arg HOST_UUCP_GID=$(getent group uucp | cut -d: -f3) \
             --build-arg PRJ_DIR=${PRJ_DIR} \
+            --build-arg TFTPD_PORT=${PRJ_TFTPD_PORT} \
             -t ${IMAGE_NAME} ${SCRIPT_DIR}
         exit $?
         ;;

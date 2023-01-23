@@ -103,6 +103,7 @@ while [ $# -gt 0 ]; do
             --build-arg HOST_USER=$(id -u -n) \
             --build-arg HOST_UID=$(id -u) \
             --build-arg HOST_GID=$(id -g) \
+            --build-arg HOST_UUCP_GID=$(getent group uucp | cut -d: -f3) \
             --build-arg PRJ_DIR=${PRJ_DIR} \
             -t ${IMAGE_NAME} ${SCRIPT_DIR}
         exit $?

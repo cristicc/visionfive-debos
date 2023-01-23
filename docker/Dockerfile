@@ -15,13 +15,15 @@ RUN apt-get update && apt-get upgrade -y && \
 ARG HOST_USER=riscdev
 ARG HOST_UID=1000
 ARG HOST_GID=1000
+ARG HOST_UUCP_GID=986
 ARG PRJ_DIR=/home/${HOST_USER}/visionfive
 
 ENV PATH=${PATH}:/home/${HOST_USER}/local/bin
 ENV LANG C.UTF-8
 
 RUN groupadd -g ${HOST_GID} ${HOST_USER} && \
-    useradd -m -u ${HOST_UID} -g ${HOST_GID} ${HOST_USER} && \
+    groupmod -g ${HOST_UUCP_GID} uucp && \
+    useradd -m -u ${HOST_UID} -g ${HOST_GID} -G uucp ${HOST_USER} && \
     echo 'alias kmake="make -j $(($(nproc)+1)) O=build ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- LOCALVERSION=\"\""' \
         >> /home/${HOST_USER}/.bash_aliases
 

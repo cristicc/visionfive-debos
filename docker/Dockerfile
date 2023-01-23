@@ -2,11 +2,13 @@ FROM debian:11.2-slim
 
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y autoconf autopoint autotools-dev \
-        b4 bash-completion bc bison cpio \
+        b4 bash-completion bc bison busybox cpio \
         dpkg-dev dwarves flex gcc gcc-riscv64-linux-gnu \
-        git gettext kmod libelf-dev libncurses-dev libssl-dev \
-        make pkg-config python3 python3-pip \
-        rsync swig xz-utils zstd && \
+        git gettext kmod \
+        libelf-dev libcap2-bin libncurses-dev libssl-dev \
+        make pkg-config \
+        python3 python3-pexpect python3-pip python3-serial \
+        rsync swig tftpd-hpa u-boot-tools xz-utils zstd && \
     rm -rf /var/lib/apt/lists/* && \
     pip3 install --upgrade dtschema yamllint
 

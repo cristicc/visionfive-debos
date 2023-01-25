@@ -8,7 +8,6 @@
 import argparse
 import sys
 
-import pexpect
 import pexpect.fdpexpect
 import serial
 
@@ -37,7 +36,7 @@ UBOOT_DTB_ADDR = "0x88000000"
 UBOOT_RAMDISK_ADDR = "0x88300000"
 
 TFTP_SERVER_IP = "192.168.1.90"
-LINUX_KERNEL_IMG_DIR = "linux/build/arch/riscv/boot"
+LINUX_KERNEL_IMG_DIR = "linux-wip/build/arch/riscv/boot"
 
 LINUX_KERNEL_START_MSG = "Linux version [0-9]"
 SHELL_PROMPT = "/ # "
@@ -113,7 +112,7 @@ def tftp_boot_linux(con):
         send_uboot_cmd(
             con,
             f"booti {UBOOT_KERNEL_ADDR} {UBOOT_RAMDISK_ADDR} {UBOOT_DTB_ADDR}",
-            LINUX_KERNEL_START_MSG
+            LINUX_KERNEL_START_MSG,
         )
 
     except Exception as e:
@@ -122,35 +121,61 @@ def tftp_boot_linux(con):
         raise Exception("TFTP boot failed")
 
 
-parser = argparse.ArgumentParser(
-    description="Utility to automate booting Linux via U-Boot TFTP."
-)
+def run_miniterm(ser_inst):
+    import serial.tools.miniterm
 
-parser.add_argument("tty", help="Serial console device")
-parser.add_argument(
-    "baud",
-    help="The serial port baud rate (default 115200)",
-    nargs="?",
-    default="115200",
-)
+    old_sys_argv = sys.argv
+    sys.argv = [old_sys_argv[0]]
+    # FIXME: Use serial_instance when available
+    # https://github.com/pyserial/pyserial/commit/bce419352b22b2605df6c2158f3e20a15b8061cb
+    # serial.tools.miniterm.main(serial_instance=ser_inst)
+    serial.tools.miniterm.main(ser_inst.port, ser_inst.baudrate)
+    sys.argv = old_sys_argv
 
-args = parser.parse_args()
 
-ser = serial.Serial(
-    port=args.tty,
-    baudrate=args.baud,
-    stopbits=serial.STOPBITS_ONE,
-    bytesize=serial.EIGHTBITS,
-)
+def main():
+    parser = argparse.ArgumentParser(
+        description="Utility to automate booting Linux via U-Boot TFTP."
+    )
 
-print("Connecting to " + args.tty + " @" + args.baud)
+    parser.add_argument(
+        "--skip-boot",
+        help="Skip TFTP booting procedure",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument("tty", help="Serial console device")
+    parser.add_argument(
+        "baud",
+        help="The serial port baud rate (default: 115200)",
+        nargs="?",
+        default="115200",
+    )
 
-with pexpect.fdpexpect.fdspawn(
-    ser, timeout=60, encoding="utf-8", logfile=sys.stdout
-) as con:
-    wait_uboot_prompt(con)
-    tftp_boot_linux(con)
-    wait_shell_prompt(con)
+    args = parser.parse_args()
 
-print
-print("> Done")
+    ser = serial.Serial(
+        port=args.tty,
+        baudrate=args.baud,
+        stopbits=serial.STOPBITS_ONE,
+        bytesize=serial.EIGHTBITS,
+    )
+
+    print("Connecting to " + args.tty + " @" + args.baud)
+
+    with pexpect.fdpexpect.fdspawn(
+        ser, timeout=60, encoding="utf-8", logfile=sys.stdout
+    ) as con:
+        if not args.skip_boot:
+            wait_uboot_prompt(con)
+            tftp_boot_linux(con)
+            wait_shell_prompt(con)
+
+        run_miniterm(ser)
+
+    print
+    print("> Done")
+
+
+if __name__ == "__main__":
+    main()

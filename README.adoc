@@ -179,17 +179,23 @@ Usage: docker.sh [OPTION]... COMMAND
 Helper script to automate Docker container creation for building VisionFive sources.
 
 Options:
-  -h, --help        Display this help text and exit
+  -h, --help        Display this help text and exit.
 
   -p, --project_dir DIR
                     Set project directory to a custom location.
 
 Commands:
-  build             Build docker image
-  run               Run docker container
-  exec [COMMAND]    Execute a command in the container
-  stop              Stop docker container
-  status            Show docker container status
+  build             Build docker image.
+
+  run [--new] [STTY]
+                    Run docker container. Pass '--new' to ensure a new container
+                    instance is created, i.e. any existing container is removed.
+                    Optionally, a host serial device STTY can be added to the
+                    container. This will also start a TFTP server.
+
+  exec [COMMAND]    Execute a command in the container.
+  stop              Stop docker container.
+  status            Show docker container status.
 ----
 
 Pass the `run` command to instantiate a container named `visionfive-build` and
@@ -547,6 +553,168 @@ Linux (none) 6.1.0-rc1-visionfive #1 SMP Sun Oct 30 19:45:43 UTC 2022 riscv64 ri
 
 Note there is no driver for the eMMC storage in the mainline kernel 6.1, hence
 the rootfs cannot be mounted.
+
+
+== Boot Linux kernel from U-Boot via TFTP
+
+To speedup the development process, it is possible to boot the kernel directly
+from U-Boot using TFTP.
+
+
+=== Create a fresh build container with serial TTY & TFTP support
+
+Provide the path to the serial device and pass the `--new` argument to ensure
+any existing container is discarded.
+
+[source,sh]
+----
+$ docker/docker.sh run --new /dev/ttyUSB0
+Jan 29 15:47:17 visionfive-build syslog.info syslogd started: BusyBox v1.30.1
+
+visionfive-build:~/visionfive-debos$ busybox netstat -ul
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+udp        0      0 0.0.0.0:10069           0.0.0.0:*
+----
+
+A https://linux.die.net/man/8/in.tftpd[TFTP server] listening on UDP port 10069
+is automatically started in the container and is able to serve content from the
+project's work directory. The service is further published to the host via the
+standard port 69.
+
+[TIP]
+Also note a syslog daemon is also available in order to give access to the tftpd
+log messages. Run `docker logs visionfive-build` on a host console to show the
+container log buffer.
+
+
+=== Prepare a minimalistic initramfs image
+
+In order to boot the kernel and get access to a shell console, we need to
+provide a ramdisk with the rootfs, i.e. an initramfs.
+
+Instead of creating the rootfs from scratch, e.g. using buildroot or similar
+tools, we can use a prebuilt one:
+
+[source,sh]
+----
+visionfive-build:~/visionfive-debos$ mkdir -p work/ramdisk && cd work/ramdisk
+visionfive-build:~/visionfive-debos/work/ramdisk$ curl -fLO \
+    https://github.com/montjoie/lava-healthchecks-binary/raw/master/images/rootfs/buildroot/buildroot-baseline/20221125.0/riscv/rootfs.cpio.gz
+----
+
+Now run the command below to create a RISC-V compatible ramdisk image for U-Boot:
+
+[source,sh]
+----
+visionfive-build:~/visionfive-debos/work/ramdisk$ mkimage -A riscv -T ramdisk -C none -d rootfs.cpio.gz rootfs.cpio.gz.uboot
+Image Name:
+Created:      Sun Jan 29 17:50:36 2023
+Image Type:   RISC-V Linux RAMDisk Image (uncompressed)
+Data Size:    7837576 Bytes = 7653.88 KiB = 7.47 MiB
+Load Address: 00000000
+Entry Point:  00000000
+----
+
+
+=== Boot kernel via TFTP
+
+Use the `tools/tftp-boot.py` utility to automate the communication with U-Boot
+via the serial port. It is able to provide the required U-Boot commands for
+loading the kernel image, DTB and initramfs from the TFTP server running on the
+_visionfive-build_ Docker container.
+
+[source,sh]
+----
+visionfive-build:~/visionfive-debos$ tools/tftp-boot.py -h
+usage: tftp-boot.py [-h] [--kernel-root KERNEL_ROOT] [--ramdisk-file RAMDISK_FILE]
+                    [--tftp-server-ip TFTP_SERVER_IP] [--skip-boot SKIP_BOOT]
+                    tty [baud]
+
+Utility to automate booting Linux via U-Boot TFTP.
+
+positional arguments:
+  tty                   Serial console device
+  baud                  The serial port baud rate (default: 115200)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --kernel-root KERNEL_ROOT
+                        Linux kernel top directory relative to project "work" folder
+                        (default: linux)
+  --ramdisk-file RAMDISK_FILE
+                        U-Boot ramdisk file path relative to project "work" folder
+                        (default: ramdisk/rootfs.cpio.gz.uboot)
+  --tftp-server-ip TFTP_SERVER_IP
+                        The IP address of the TFTP server hosting the boot files
+                        (default: 192.168.1.90)
+  --skip-boot SKIP_BOOT
+                        Skip TFTP booting procedure (default: False)
+----
+
+[IMPORTANT]
+Make sure the board is connected to a local network providing a DHCP service,
+which is used by U-Boot to get an IP address. Additionally, the network setup
+should allow TFTP access to the host system where the Docker container has been
+started.
+
+[source,sh]
+----
+visionfive-build:~/visionfive-debos$ tools/tftp-boot.py \
+    --kernel-root linux-wip --tftp-server-ip 192.168.1.10 /dev/ttyUSB0
+Connecting to /dev/ttyUSB0 @115200
+> Waiting for U-Boot prompt..
+
+VisionFive #setenv autoload no
+setenv autoload no
+VisionFive #setenv initrd_high 0xffffffffffffffff
+setenv initrd_high 0xffffffffffffffff
+VisionFive #setenv fdt_high 0xffffffffffffffff
+setenv fdt_high 0xffffffffffffffff
+VisionFive #dhcp
+dhcp
+Speed: 1000, full duplex
+BOOTP broadcast 1
+DHCP client bound to address 192.168.1.67 (3 ms)
+VisionFive #setenv serverip 192.168.1.10
+setenv serverip 192.168.1.10
+VisionFive #tftpboot 0x84000000 linux-wip/build/arch/riscv/boot/Image
+tftpboot 0x84000000 linux-wip/build/arch/riscv/boot/Image
+Speed: 1000, full duplex
+Using dwmac.10020000 device
+TFTP from server 192.168.1.10; our IP address is 192.168.1.67
+Filename 'linux-wip/build/arch/riscv/boot/Image'.
+Load address: 0x84000000
+Loading: Jan 29 22:29:16 visionfive-build daemon.notice in.tftpd[149]: RRQ from 192.168.1.67 filename linux-wip/build/arch/riscv/boot/Image
+##################################################  20.8 MiB
+	 11.3 MiB/s
+done
+Bytes transferred = 21828608 (14d1400 hex)
+[...]
+VisionFive #setenv bootargs 'console=ttyS0,115200n8 root=/dev/ram0 console_msg_format=syslog earlycon ip=dhcp'
+setenv bootargs 'console=ttyS0,115200n8 root=/dev/ram0 console_msg_format=syslog earlycon ip=dhcp'
+VisionFive #booti 0x84000000 0x88300000 0x88000000
+booti 0x84000000 0x88300000 0x88000000
+Moving Image from 0x84000000 to 0x80200000, end=8172a000
+## Loading init Ramdisk from Legacy Image at 88300000 ...
+   Image Name:
+   Image Type:   RISC-V Linux RAMDisk Image (uncompressed)
+   Data Size:    7837576 Bytes = 7.5 MiB
+   Load Address: 00000000
+   Entry Point:  00000000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 88000000
+   Booting using the fdt blob at 0x88000000
+   Using Device Tree in place at 0000000088000000, end 00000000880054e4
+
+Starting kernel ...
+[...]
+/ # --- Miniterm on /dev/ttyUSB0  115200,8,N,1 ---
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H ---
+/ #
+/ # uname -a
+Linux buildroot 6.2.0-rc5-next-20230124-visionfive #3 SMP Wed Jan 25 01:18:38 UTC 2023 riscv64 GNU/Linux
+----
 
 
 [bibliography]

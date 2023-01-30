@@ -28,9 +28,13 @@ Options:
 
 Commands:
   build             Build docker image.
-  run [STTY]        Run docker container.
+
+  run [--new] [STTY]
+                    Run docker container. Pass '--new' to ensure a new container
+                    instance is created, i.e. any existing container is removed.
                     Optionally, a host serial device STTY can be added to the
                     container. This will also start a TFTP server.
+
   exec [COMMAND]    Execute a command in the container.
   stop              Stop docker container.
   status            Show docker container status.
@@ -55,15 +59,28 @@ manage_container() {
     }
 
     local run_args run_cmd
-    [ "${op}" = "run" ] && [ -n "$1" ] && {
-        run_args="--device=$1 -p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
-        # run_args="-p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
-        run_cmd="busybox syslogd -n -O /dev/stdout &"
-        run_cmd="${run_cmd} mkdir -p ${PRJ_DIR}/work &&"
-        run_cmd="${run_cmd} /usr/sbin/in.tftpd -Lvvv --user cristi --address 0.0.0.0:${PRJ_TFTPD_PORT} --secure -4 ${PRJ_DIR}/work &"
-        run_cmd="${run_cmd} exec bash"
+    [ "${op}" = "run" ] && {
+        [ "$1" = "--new" ] && {
+            shift
+            [ -n "${status}" ] && {
+                docker stop ${container} >/dev/null
+                docker rm ${container} || {
+                    printf "Failed to remove existing container\n" 2>&1
+                    return 1
+                }
+                unset status
+            }
+        }
+        [ -n "$1" ] && {
+            run_args="--device=$1 -p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
+            # run_args="-p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
+            run_cmd="busybox syslogd -n -O /dev/stdout &"
+            run_cmd="${run_cmd} mkdir -p ${PRJ_DIR}/work &&"
+            run_cmd="${run_cmd} /usr/sbin/in.tftpd -Lvvv --user cristi --address 0.0.0.0:${PRJ_TFTPD_PORT} --secure -4 ${PRJ_DIR}/work &"
+            run_cmd="${run_cmd} exec bash"
 
-        set -- /bin/sh -c "${run_cmd}"
+            set -- /bin/sh -c "${run_cmd}"
+        }
     }
 
     [ -z "${status}" ] &&

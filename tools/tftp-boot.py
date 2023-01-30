@@ -12,6 +12,7 @@ import pexpect.fdpexpect
 import serial
 
 UBOOT_PROMPT = "VisionFive #"
+UBOOT_UPDATE_PROMPT = "select the function: "
 
 UBOOT_ERROR_MSGS = [
     "Resetting CPU",
@@ -46,19 +47,27 @@ def wait_uboot_prompt(con):
     print("> Waiting for U-Boot prompt..")
 
     top = 10
+    con.sendline(" ")
+
     for count in range(top):
         try:
-            con.expect(UBOOT_PROMPT, timeout=5)
-            return
-        except pexpect.TIMEOUT:
-            print()
-            print("> Timeout waiting for U-Boot prompt (try=%d)" % count)
-            con.sendline(" ")
-        except Exception as e:
-            print()
-            print(
-                "> Error waiting for U-Boot prompt (try=%d): %s" % (count, e)
+            res = con.expect(
+                [UBOOT_PROMPT, UBOOT_UPDATE_PROMPT, pexpect.TIMEOUT],
+                timeout=1 if count == 0 else 5,
             )
+            if res == 0:
+                return
+            if res == 1:
+                # Handle update menu:
+                # 0:update uboot
+                # 1:quit
+                print("> Quit U-Boot update menu")
+                con.sendline("1")
+            else:
+                print("> timeout")
+                con.sendline(" ")
+        except Exception as e:
+            print(f"> Error waiting for U-Boot prompt (try={count}): {e}")
 
     raise Exception("Failed to get U-Boot prompt")
 
@@ -166,14 +175,8 @@ def main():
 
     args = parser.parse_args()
 
-    ser = serial.Serial(
-        port=args.tty,
-        baudrate=args.baud,
-        stopbits=serial.STOPBITS_ONE,
-        bytesize=serial.EIGHTBITS,
-    )
-
     print("Connecting to " + args.tty + " @" + args.baud)
+    ser = serial.serial_for_url(args.tty, baudrate=args.baud)
 
     with pexpect.fdpexpect.fdspawn(
         ser, timeout=60, encoding="utf-8", logfile=sys.stdout

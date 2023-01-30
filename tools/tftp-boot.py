@@ -37,9 +37,7 @@ UBOOT_KERNEL_ADDR = "0x84000000"
 UBOOT_DTB_ADDR = "0x88000000"
 UBOOT_RAMDISK_ADDR = "0x88300000"
 
-TFTP_SERVER_IP = "192.168.1.90"
-LINUX_KERNEL_IMG_DIR = "linux-wip/build/arch/riscv/boot"
-
+LINUX_KERNEL_IMG_DIR = "build/arch/riscv/boot"
 LINUX_KERNEL_START_MSG = "Linux version [0-9]"
 SHELL_PROMPT = "/ # "
 
@@ -77,34 +75,31 @@ def send_uboot_cmd(con, cmd, cmd_expect=UBOOT_PROMPT):
 
     try:
         con.sendline(cmd)
-
         res = con.expect(msgs)
-        if res > 0:
-            raise Exception("Unexpected response: %s" % con.match.group(0))
-
     except Exception as e:
-        raise Exception("Command %s failed: %s" % (cmd, e))
+        raise Exception(f'Command "{cmd}" failed: {e}')
+
+    if res > 0:
+        raise Exception(f'Command "{cmd}" failed: {con.match.group(0)}')
 
 
-def tftp_boot_linux(con):
+def tftp_boot_linux(con, tftp_server_ip, linux_img_dir, ramdisk_file):
     try:
         send_uboot_cmd(con, "setenv autoload no")
         send_uboot_cmd(con, "setenv initrd_high 0xffffffffffffffff")
         send_uboot_cmd(con, "setenv fdt_high 0xffffffffffffffff")
         send_uboot_cmd(con, "dhcp")
-        send_uboot_cmd(con, f"setenv serverip {TFTP_SERVER_IP}")
+        send_uboot_cmd(con, f"setenv serverip {tftp_server_ip}")
         send_uboot_cmd(
             con,
-            f"tftpboot {UBOOT_KERNEL_ADDR} {LINUX_KERNEL_IMG_DIR}/Image",
+            f"tftpboot {UBOOT_KERNEL_ADDR} {linux_img_dir}/Image",
         )
         send_uboot_cmd(
             con,
-            f"tftpboot {UBOOT_DTB_ADDR} {LINUX_KERNEL_IMG_DIR}"
+            f"tftpboot {UBOOT_DTB_ADDR} {linux_img_dir}"
             + "/dts/starfive/jh7100-starfive-visionfive-v1.dtb",
         )
-        send_uboot_cmd(
-            con, f"tftpboot {UBOOT_RAMDISK_ADDR} ramdisk/rootfs.cpio.gz.uboot"
-        )
+        send_uboot_cmd(con, f"tftpboot {UBOOT_RAMDISK_ADDR} {ramdisk_file}")
         send_uboot_cmd(
             con,
             "setenv bootargs"
@@ -116,10 +111,11 @@ def tftp_boot_linux(con):
             f"booti {UBOOT_KERNEL_ADDR} {UBOOT_RAMDISK_ADDR} {UBOOT_DTB_ADDR}",
             LINUX_KERNEL_START_MSG,
         )
+        con.sendline(" ")
 
     except Exception as e:
         print()
-        print("> Error communicating with U-Boot: %s" % e)
+        print(f"> Error communicating with U-Boot: {e}")
         raise Exception("TFTP boot failed")
 
 
@@ -137,19 +133,33 @@ def run_miniterm(ser_inst):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Utility to automate booting Linux via U-Boot TFTP."
+        description="Utility to automate booting Linux via U-Boot TFTP.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-
+    parser.add_argument(
+        "--kernel-root",
+        help='Linux kernel top directory relative to project "work" folder',
+        default="linux",
+    )
+    parser.add_argument(
+        "--ramdisk-file",
+        help='U-Boot ramdisk file path relative to project "work" folder',
+        default="ramdisk/rootfs.cpio.gz.uboot",
+    )
+    parser.add_argument(
+        "--tftp-server-ip",
+        help="The IP address of the TFTP server hosting the boot files",
+        default="192.168.1.90",
+    )
     parser.add_argument(
         "--skip-boot",
         help="Skip TFTP booting procedure",
         default=False,
-        action=argparse.BooleanOptionalAction,
     )
     parser.add_argument("tty", help="Serial console device")
     parser.add_argument(
         "baud",
-        help="The serial port baud rate (default: 115200)",
+        help="The serial port baud rate",
         nargs="?",
         default="115200",
     )
@@ -170,7 +180,12 @@ def main():
     ) as con:
         if not args.skip_boot:
             wait_uboot_prompt(con)
-            tftp_boot_linux(con)
+            tftp_boot_linux(
+                con,
+                args.tftp_server_ip,
+                f"{args.kernel_root}/{LINUX_KERNEL_IMG_DIR}",
+                args.ramdisk_file,
+            )
             wait_shell_prompt(con)
 
         run_miniterm(ser)

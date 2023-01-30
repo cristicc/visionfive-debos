@@ -12,23 +12,25 @@ import pexpect.fdpexpect
 import serial
 
 UBOOT_PROMPT = "VisionFive #"
+
 UBOOT_ERROR_MSGS = [
-    "Resetting CPU"
-    "Must RESET board to recover"
-    "TIMEOUT"
-    "Retry count exceeded"
-    "Retry time exceeded; starting again"
-    "ERROR: The remote end did not respond in time."
-    "File not found"
-    "Bad Linux ARM64 Image magic!"
-    "Wrong Ramdisk Image Format"
-    "Ramdisk image is corrupt or invalid"
-    "ERROR: Failed to allocate"
-    "TFTP error: trying to overwrite reserved memory"
-    "Bad Linux RISCV Image magic!"
-    "Wrong Image Format for boot"
-    "ERROR: Did not find a cmdline Flattened Device Tree"
-    "ERROR: RD image overlaps OS image"
+    "Resetting CPU",
+    "Must RESET board to recover",
+    "TIMEOUT",
+    "Retry count exceeded",
+    "Retry time exceeded; starting again",
+    "ERROR: The remote end did not respond in time.",
+    "File not found",
+    "Bad Linux ARM64 Image magic!",
+    "Wrong Ramdisk Image Format",
+    "Ramdisk image is corrupt or invalid",
+    "ERROR: Failed to allocate",
+    "TFTP error: \\w+",
+    "TFTP server died",
+    "Bad Linux RISCV Image magic!",
+    "Wrong Image Format for boot",
+    "ERROR: Did not find a cmdline Flattened Device Tree",
+    "ERROR: RD image overlaps OS image",
 ]
 
 UBOOT_KERNEL_ADDR = "0x84000000"

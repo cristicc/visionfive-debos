@@ -77,7 +77,11 @@ def wait_uboot_prompt(con):
 def wait_shell_prompt(con):
     print()
     print("> Waiting for Shell prompt..")
+
     con.expect(SHELL_PROMPT, timeout=60)
+
+    # Workaround for "bin/sh: can't access tty; job control turned off"
+    con.sendline("setsid -c /bin/sh")
 
 
 def send_uboot_cmd(con, cmd, cmd_expect=UBOOT_PROMPT):

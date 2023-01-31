@@ -57,15 +57,17 @@ def wait_uboot_prompt(con):
             )
             if res == 0:
                 return
+
             if res == 1:
                 # Handle update menu:
                 # 0:update uboot
                 # 1:quit
                 print("> Quit U-Boot update menu")
-                con.sendline("1")
+                # FIXME: sendline() puts LF instead of CRLF in OpenSBI console
+                con.send("1\r\n")
             else:
                 print("> timeout")
-                con.sendline(" ")
+                con.send(" \r\n")
         except Exception as e:
             print(f"> Error waiting for U-Boot prompt (try={count}): {e}")
 
@@ -111,16 +113,14 @@ def tftp_boot_linux(con, tftp_server_ip, linux_img_dir, ramdisk_file):
         send_uboot_cmd(con, f"tftpboot {UBOOT_RAMDISK_ADDR} {ramdisk_file}")
         send_uboot_cmd(
             con,
-            "setenv bootargs"
-            + " 'console=ttyS0,115200n8 root=/dev/ram0"
-            + " console_msg_format=syslog earlycon ip=dhcp ip=dhcp'",
+            "setenv bootargs 'console=ttyS0,115200n8 root=/dev/ram0"
+            + " console_msg_format=syslog earlycon ip=dhcp'",
         )
         send_uboot_cmd(
             con,
             f"booti {UBOOT_KERNEL_ADDR} {UBOOT_RAMDISK_ADDR} {UBOOT_DTB_ADDR}",
             LINUX_KERNEL_START_MSG,
         )
-        con.sendline(" ")
 
     except Exception as e:
         print()
@@ -138,6 +138,33 @@ def run_miniterm(ser_inst):
     # serial.tools.miniterm.main(serial_instance=ser_inst)
     serial.tools.miniterm.main(ser_inst.port, ser_inst.baudrate)
     sys.argv = old_sys_argv
+
+
+def connect(_args, timeout, logfile, encoding, codec_errors):
+    ser = None
+
+    if _args.serialport.isdecimal() and 1 <= int(_args.serialport) <= 65535:
+        print(f"Connecting to ser2net @ {_args.serialport}")
+        con = pexpect.spawn(
+            "telnet",
+            args=["localhost", _args.serialport],
+            timeout=timeout,
+            logfile=logfile,
+            encoding=encoding,
+            codec_errors=codec_errors,
+        )
+    else:
+        print(f"Connecting to {_args.serialport} @ {_args.baud}")
+        ser = serial.serial_for_url(_args.serialport, baudrate=_args.baud)
+        con = pexpect.fdpexpect.fdspawn(
+            ser,
+            timeout=timeout,
+            logfile=logfile,
+            encoding=encoding,
+            codec_errors=codec_errors,
+        )
+
+    return con, ser
 
 
 def main():
@@ -162,25 +189,23 @@ def main():
     )
     parser.add_argument(
         "--skip-boot",
-        help="Skip TFTP booting procedure",
-        default=False,
+        help="Skip U-Boot TFTP boot procedure",
+        action="store_true",
     )
-    parser.add_argument("tty", help="Serial console device")
+    parser.add_argument(
+        "serialport", help="Serial device path or telnet port number"
+    )
     parser.add_argument(
         "baud",
-        help="The serial port baud rate",
+        help="The baud rate when using serial device path",
         nargs="?",
         default="115200",
     )
 
     args = parser.parse_args()
 
-    print("Connecting to " + args.tty + " @" + args.baud)
-    ser = serial.serial_for_url(args.tty, baudrate=args.baud)
-
-    with pexpect.fdpexpect.fdspawn(
-        ser, timeout=60, encoding="utf-8", logfile=sys.stdout
-    ) as con:
+    con, ser = connect(args, 60, sys.stdout, "utf-8", "replace")
+    try:
         if not args.skip_boot:
             wait_uboot_prompt(con)
             tftp_boot_linux(
@@ -191,10 +216,17 @@ def main():
             )
             wait_shell_prompt(con)
 
-        run_miniterm(ser)
+        if ser is None:
+            con.logfile = None
+            con.interact()
+        else:
+            run_miniterm(ser)
 
-    print
-    print("> Done")
+        print
+        print("> Done")
+
+    finally:
+        con.close()
 
 
 if __name__ == "__main__":

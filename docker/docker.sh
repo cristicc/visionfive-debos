@@ -10,6 +10,7 @@ SCRIPT_DIR=$(readlink -mn "$0")
 SCRIPT_DIR=${SCRIPT_DIR%/*}
 
 PRJ_DIR=$(readlink -mn "${SCRIPT_DIR}/..")
+PRJ_SER2NET_PORT=10050
 PRJ_TFTPD_PORT=10069
 
 #
@@ -29,7 +30,7 @@ Options:
 Commands:
   build             Build docker image.
 
-  run [--new] [STTY]
+  run [--new] [STTY [BAUD]]
                     Run docker container. Pass '--new' to ensure a new container
                     instance is created, i.e. any existing container is removed.
                     Optionally, a host serial device STTY can be added to the
@@ -72,11 +73,16 @@ manage_container() {
             }
         }
         [ -n "$1" ] && {
-            run_args="--device=$1 -p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
-            # run_args="-p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
+            local sdev=$1 sbaud=${2:-115200}
+
+            run_args="--device=${sdev} -p 0.0.0.0:${PRJ_SER2NET_PORT}:${PRJ_SER2NET_PORT}/tcp"
+            run_args="${run_args} -p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
+
             run_cmd="busybox syslogd -n -O /dev/stdout &"
             run_cmd="${run_cmd} mkdir -p ${PRJ_DIR}/work &&"
             run_cmd="${run_cmd} /usr/sbin/in.tftpd -Lvvv --user cristi --address 0.0.0.0:${PRJ_TFTPD_PORT} --secure -4 ${PRJ_DIR}/work &"
+            run_cmd="${run_cmd} sed -e s#{PORT}#${PRJ_SER2NET_PORT}# -e s#{DEVICE}#${sdev}# -e s#{BAUD}#${sbaud}# /etc/ser2net.yaml >/tmp/ser2net.yaml &&"
+            run_cmd="${run_cmd} /usr/sbin/ser2net -c /tmp/ser2net.yaml &"
             run_cmd="${run_cmd} exec bash"
 
             set -- /bin/sh -c "${run_cmd}"
@@ -138,6 +144,7 @@ while [ $# -gt 0 ]; do
             --build-arg HOST_GID=$(id -g) \
             --build-arg HOST_UUCP_GID=$(getent group uucp | cut -d: -f3) \
             --build-arg PRJ_DIR=${PRJ_DIR} \
+            --build-arg SER2NET_PORT=${PRJ_SER2NET_PORT} \
             --build-arg TFTPD_PORT=${PRJ_TFTPD_PORT} \
             -t ${IMAGE_NAME} ${SCRIPT_DIR}
         exit $?

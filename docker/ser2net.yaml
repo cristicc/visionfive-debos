@@ -1,0 +1,8 @@
+%YAML 1.1
+---
+connection: &scon
+  accepter: telnet(rfc2217),tcp,{PORT}
+  enable: on
+  connector: serialdev,{DEVICE},{BAUD}n81,local
+  options:
+    max-connections: 10

@@ -44,19 +44,25 @@ SHELL_PROMPT = "/ # "
 
 
 def wait_uboot_prompt(con):
-    print("> Waiting for U-Boot prompt..")
+    # Temporarily disable logging the sending data to hide the empty lines
+    orig_logfile = con.logfile
+    con.logfile = None
+    con.logfile_read = orig_logfile
 
+    print("> Waiting for U-Boot prompt")
     top = 10
-    con.sendline(" ")
+    err = "timeout"
 
-    for count in range(top):
-        try:
+    con.sendline(" ")
+    try:
+        for count in range(top):
             res = con.expect(
                 [UBOOT_PROMPT, UBOOT_UPDATE_PROMPT, pexpect.TIMEOUT],
                 timeout=1 if count == 0 else 5,
             )
             if res == 0:
-                return
+                err = None
+                break
 
             if res == 1:
                 # Handle update menu:
@@ -66,12 +72,16 @@ def wait_uboot_prompt(con):
                 # FIXME: sendline() puts LF instead of CRLF in OpenSBI console
                 con.send("1\r\n")
             else:
-                print("> timeout")
                 con.send(" \r\n")
-        except Exception as e:
-            print(f"> Error waiting for U-Boot prompt (try={count}): {e}")
+    except Exception as e:
+        err = e
+    finally:
+        # Restore original logging
+        con.logfile = orig_logfile
+        con.logfile_read = None
 
-    raise Exception("Failed to get U-Boot prompt")
+    if err is not None:
+        raise Exception(f"Failed to get U-Boot prompt: {err}")
 
 
 def wait_shell_prompt(con):

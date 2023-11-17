@@ -29,15 +29,19 @@ actions:
       - apt-utils
       - bash-completion
       - i2c-tools
+      - iproute2
+      - iputils-ping
       - initramfs-tools
       - less
       - libnss-resolve
+      - netcat-openbsd
       - openssh-server
       - rsync
       - sudo
       - systemd-sysv
       - systemd-timesyncd
       - vim-tiny
+      - wget
   {{ end }}
 
   {{ if eq $use_rootfs_base "create" }}

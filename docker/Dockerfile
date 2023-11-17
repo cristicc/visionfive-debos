@@ -3,7 +3,7 @@ FROM debian:11.2-slim
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y autoconf autopoint autotools-dev \
         b4 bash-completion bc bison busybox cpio \
-        dpkg-dev dwarves flex gcc gcc-riscv64-linux-gnu \
+        debhelper dpkg-dev dwarves flex gcc gcc-riscv64-linux-gnu \
         git gettext kmod \
         libelf-dev libcap2-bin libncurses-dev libssl-dev \
         make pkg-config \

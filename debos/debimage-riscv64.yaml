@@ -1,5 +1,5 @@
-{{- $mirror := or .mirror "https://deb.debian.org/debian-ports" -}}
-{{- $suite := or .suite "unstable" -}}
+{{- $mirror := or .mirror "https://deb.debian.org/debian" -}}
+{{- $suite := or .suite "sid" -}}
 {{- $kernel := or .kernel "linux-image-riscv64" -}}
 {{- $cmdline := or .cmdline " rootwait ro fsck.mode=auto fsck.repair=yes console=ttyS1,115200" -}}
 {{- $image := or .image "debian-riscv64.img" -}}

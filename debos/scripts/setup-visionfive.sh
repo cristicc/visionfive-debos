@@ -103,6 +103,9 @@ systemctl enable systemd-networkd systemd-resolved
 # Set root password
 echo "root:root" | chpasswd
 
+# Allow SSH root login
+echo "PermitRootLogin=yes" >>/etc/ssh/sshd_config
+
 # Change hostname
 echo visionfive >/etc/hostname
 

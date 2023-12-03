@@ -85,11 +85,20 @@ cat <<EOF >/etc/fstab
 EOF
 
 # Configure network
-mkdir -p /etc/network
-cat >>/etc/network/interfaces <<EOF
-allow-hotplug eth0
-iface eth0 inet dhcp
+mkdir -p /etc/systemd/network
+cat >/etc/systemd/network/dhcp.network <<'EOF'
+# https://www.debian.org/doc/manuals/debian-reference/ch05.en.html
+#
+# Run the following command after any changes to this file:
+# systemctl restart systemd-networkd systemd-resolved
+
+[Match]
+Name=eth*
+
+[Network]
+DHCP=yes
 EOF
+systemctl enable systemd-networkd systemd-resolved
 
 # Set root password
 echo "root:root" | chpasswd

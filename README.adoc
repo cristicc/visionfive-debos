@@ -5,13 +5,13 @@ ifdef::env-github[]
 :important-caption: :heavy_exclamation_mark:
 :caution-caption: :fire:
 :warning-caption: :warning:
+:toc:
+:toc-placement!:
 endif::[]
 :example-caption!:
 :table-caption!:
 :prewrap!:
 :imagesdir: docs/img
-:toc:
-:toc-placement!:
 :sectnums:
 :sectanchors:
 :sectlinks:
@@ -20,10 +20,9 @@ endif::[]
 :PROJECT_DIR: ${HOME}/{PROJECT_NAME}
 :OUTPUT_DIR: {PROJECT_DIR}/build
 
+ifdef::env-github[]
 toc::[]
-
-[IMPORTANT]
-This is currently a work in progress.
+endif::[]
 
 == Intro
 
@@ -292,7 +291,7 @@ may apply them by running:
 visionfive-build:~/visionfive-debos/work/linux$ git am --empty=drop ../../linux/patches/*.patch
 ----
 
-[NOTE]
+[IMPORTANT]
 The patches have been merged in
 https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/log/?qt=range&q=bd51ad582163b6532ea23a353eebd180472b2a5a~1..ab8ec07922541d675db7105fd8174bc18f8bec64[linux-next].
 Hence, if building the `next-20221114` kernel or newer, there is no need to

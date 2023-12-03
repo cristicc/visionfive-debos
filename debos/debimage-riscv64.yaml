@@ -28,6 +28,7 @@ actions:
       - adduser
       - apt-utils
       - bash-completion
+      - ethtool
       - i2c-tools
       - iproute2
       - iputils-ping

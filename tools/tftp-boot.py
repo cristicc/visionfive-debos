@@ -40,6 +40,7 @@ UBOOT_RAMDISK_ADDR = "0x88300000"
 
 LINUX_KERNEL_IMG_DIR = "build/arch/riscv/boot"
 LINUX_KERNEL_START_MSG = "Linux version [0-9]"
+LINUX_KENERL_DEFAULT_ARGS = "console=ttyS0,115200n8 root=/dev/ram0 console_msg_format=syslog earlycon ip=dhcp"
 SHELL_PROMPT = "/ # "
 
 
@@ -108,7 +109,8 @@ def send_uboot_cmd(con, cmd, cmd_expect=UBOOT_PROMPT):
         raise Exception(f'Command "{cmd}" failed: {con.match.group(0)}')
 
 
-def tftp_boot_linux(con, tftp_server_ip, linux_img_dir, ramdisk_file):
+def tftp_boot_linux(con, tftp_server_ip, linux_img_dir, ramdisk_file,
+                    kernel_args):
     try:
         send_uboot_cmd(con, "setenv autoload no")
         send_uboot_cmd(con, "setenv initrd_high 0xffffffffffffffff")
@@ -127,8 +129,7 @@ def tftp_boot_linux(con, tftp_server_ip, linux_img_dir, ramdisk_file):
         send_uboot_cmd(con, f"tftpboot {UBOOT_RAMDISK_ADDR} {ramdisk_file}")
         send_uboot_cmd(
             con,
-            "setenv bootargs 'console=ttyS0,115200n8 root=/dev/ram0"
-            + " console_msg_format=syslog earlycon ip=dhcp'",
+            f"setenv bootargs '{kernel_args}'",
         )
         send_uboot_cmd(
             con,
@@ -197,6 +198,11 @@ def main():
         default="ramdisk/rootfs.cpio.gz.uboot",
     )
     parser.add_argument(
+        "--kernel-args",
+        help='Arguments passed to the linux kernel before booting',
+        default=LINUX_KENERL_DEFAULT_ARGS,
+    )
+    parser.add_argument(
         "--tftp-server-ip",
         help="The IP address of the TFTP server hosting the boot files",
         default="192.168.1.90",
@@ -227,6 +233,7 @@ def main():
                 args.tftp_server_ip,
                 f"{args.kernel_root}/{LINUX_KERNEL_IMG_DIR}",
                 args.ramdisk_file,
+                args.kernel_args
             )
             wait_shell_prompt(con)
 

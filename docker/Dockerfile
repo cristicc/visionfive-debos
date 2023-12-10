@@ -7,6 +7,7 @@ RUN apt-get update && apt-get upgrade -y && \
         git gettext kmod \
         libelf-dev libcap2-bin libncurses-dev libssl-dev \
         make pkg-config \
+        nfs-common nfs-kernel-server \
         python3 python3-pexpect python3-pip python3-serial \
         rsync ser2net swig telnet tftpd-hpa u-boot-tools \
         xz-utils zstd && \
@@ -22,6 +23,7 @@ ARG HOST_UUCP_GID=986
 ARG PRJ_DIR=/home/${HOST_USER}/visionfive
 ARG SER2NET_PORT=10050
 ARG TFTPD_PORT=10069
+ARG NFSD_PORT=12049
 
 ENV PATH=${PATH}:/home/${HOST_USER}/local/bin
 ENV LANG C.UTF-8
@@ -35,8 +37,13 @@ RUN groupadd -g ${HOST_GID} ${HOST_USER} && \
     echo 'alias kmake="make -j $(($(nproc)+1)) O=build ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- LOCALVERSION=\"\""' \
         >> /home/${HOST_USER}/.bash_aliases
 
+RUN mkdir -p /var/lib/nfs/rpc_pipefs /var/lib/nfs/v4recovery && \
+    echo "rpc_pipefs    /var/lib/nfs/rpc_pipefs rpc_pipefs      defaults        0       0" >> /etc/fstab && \
+    echo "nfsd  /proc/fs/nfsd   nfsd    defaults        0       0" >> /etc/fstab
+
 EXPOSE ${SER2NET_PORT}/tcp
 EXPOSE ${TFTPD_PORT}/udp
+EXPOSE ${NFSD_PORT}/tcp
 
 USER ${HOST_USER}
 RUN mkdir -p ${PRJ_DIR}

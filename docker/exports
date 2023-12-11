@@ -1,0 +1,1 @@
+{{EXPORT}} {{HOST}}({{ACCESS}},fsid=0,{{SYNC}},no_subtree_check,no_auth_nlm,insecure,no_root_squash)

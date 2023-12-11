@@ -14,7 +14,10 @@ RUN apt-get update && apt-get upgrade -y && \
     rm -rf /var/lib/apt/lists/* && \
     pip3 install --upgrade dtschema yamllint
 
-COPY ser2net.yaml /etc
+COPY exports ser2net.yaml /etc/
+COPY entrypoint.sh /usr/local/bin/
+
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ARG HOST_USER=riscdev
 ARG HOST_UID=1000
@@ -27,9 +30,21 @@ ARG NFSD_PORT=12049
 
 ENV PATH=${PATH}:/home/${HOST_USER}/local/bin
 ENV LANG C.UTF-8
+ENV PRJ_DIR=${PRJ_DIR}
+ENV SER2NET_PORT=${SER2NET_PORT}
+ENV TFTPD_PORT=${TFTPD_PORT}
+ENV NFSD_PORT=${NFSD_PORT}
+
+EXPOSE ${SER2NET_PORT}/tcp
+EXPOSE ${TFTPD_PORT}/udp
+EXPOSE ${NFSD_PORT}/tcp
 
 RUN setcap 'cap_net_raw,cap_net_bind_service,cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap=+ep' /bin/busybox
 RUN setcap 'cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_setfcap=+ep' /usr/sbin/in.tftpd
+# TODO: restrict capabilities to mandatory only
+RUN setcap '=+ep' /sbin/rpcbind
+RUN setcap '=+ep' /usr/sbin/rpc.nfsd
+RUN setcap '=+ep' /usr/sbin/rpc.mountd
 
 RUN groupadd -g ${HOST_GID} ${HOST_USER} && \
     groupmod -g ${HOST_UUCP_GID} uucp && \
@@ -41,13 +56,10 @@ RUN mkdir -p /var/lib/nfs/rpc_pipefs /var/lib/nfs/v4recovery && \
     echo "rpc_pipefs    /var/lib/nfs/rpc_pipefs rpc_pipefs      defaults        0       0" >> /etc/fstab && \
     echo "nfsd  /proc/fs/nfsd   nfsd    defaults        0       0" >> /etc/fstab
 
-EXPOSE ${SER2NET_PORT}/tcp
-EXPOSE ${TFTPD_PORT}/udp
-EXPOSE ${NFSD_PORT}/tcp
-
 USER ${HOST_USER}
 RUN mkdir -p ${PRJ_DIR}
 WORKDIR ${PRJ_DIR}
 VOLUME ${PRJ_DIR}
 
-CMD ["/bin/bash"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["bash"]

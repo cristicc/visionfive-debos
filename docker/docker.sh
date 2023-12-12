@@ -12,6 +12,7 @@ SCRIPT_DIR=${SCRIPT_DIR%/*}
 PRJ_DIR=$(readlink -mn "${SCRIPT_DIR}/..")
 PRJ_SER2NET_PORT=10050
 PRJ_TFTPD_PORT=10069
+PRJ_NFSD_PORT=12049
 
 #
 # Help
@@ -30,9 +31,12 @@ Options:
 Commands:
   build             Build docker image.
 
-  run [--new] [STTY [BAUD]]
+  run [--new] [--nfs] [--interactive] [STTY [BAUD]]
                     Run docker container. Pass '--new' to ensure a new container
                     instance is created, i.e. any existing container is removed.
+                    Pass '--nfs' to start an NFS service.
+                    Pass '-i' or '--interactive' to open a console terminal in
+                    the container.
                     Optionally, a host serial device STTY can be added to the
                     container. This will also start a TFTP server.
 
@@ -42,6 +46,11 @@ Commands:
 EOM
 }
 
+#
+# arg1: container name
+# arg2: operation - run, exec, stop, status
+# arg3..argn: optional arguments to run/exec operations
+#
 manage_container() {
     local container=$1 op=$2
     shift 2
@@ -55,52 +64,91 @@ manage_container() {
     }
 
     [ "${op}" = "stop" ] && {
-        [ "${status}" = "running" ] && docker stop ${container}
+        [ "${status}" = "running" ] && {
+            printf "Stopping container %s\n" "${container}"
+            docker stop ${container}
+        }
         return 0
     }
 
-    local run_args run_cmd
+    local flag_new flag_nfs flag_inter sdev sbaud run_args run_cmd
     [ "${op}" = "run" ] && {
-        [ "$1" = "--new" ] && {
-            shift
-            [ -n "${status}" ] && {
-                docker stop ${container} >/dev/null
-                docker rm ${container} || {
-                    printf "Failed to remove existing container\n" 2>&1
-                    return 1
-                }
-                unset status
-            }
-        }
-        [ -n "$1" ] && {
-            local sdev=$1 sbaud=${2:-115200}
+        while [ $# -gt 0 ]; do
+            case $1 in
+            --new)
+                flag_new=y
+                ;;
+            --nfs)
+                flag_nfs=y
+                ;;
+            -i | --interactive)
+                flag_inter=y
+                ;;
+            -*)
+                printf "Uknown option: %s\n" "$1" 2>&1
+                return 1
+                ;;
+            *)
+                sdev=$1
+                sbaud=${2:-115200}
+                break
+                ;;
+            esac
 
+            shift
+        done
+
+        [ -n "${flag_new}" ] && [ -n "${status}" ] && {
+            printf "Removing container %s\n" "${container}"
+            docker stop ${container} >/dev/null
+            docker rm ${container} || {
+                printf "Failed to remove existing container\n" 2>&1
+                return 1
+            }
+            unset status
+        }
+
+        [ -n "${sdev}" ] && {
             run_args="--device=${sdev} -p 0.0.0.0:${PRJ_SER2NET_PORT}:${PRJ_SER2NET_PORT}/tcp"
             run_args="${run_args} -p 0.0.0.0:69:${PRJ_TFTPD_PORT}/udp"
+            set -- op_start_s2n_tftp "${sdev}" "${sbaud}" "$(id -u -n)"
+        }
 
-            run_cmd="busybox syslogd -n -O /dev/stdout &"
-            run_cmd="${run_cmd} mkdir -p ${PRJ_DIR}/work &&"
-            run_cmd="${run_cmd} /usr/sbin/in.tftpd -Lvvv --user cristi --address 0.0.0.0:${PRJ_TFTPD_PORT} --secure -4 ${PRJ_DIR}/work &"
-            run_cmd="${run_cmd} sed -e s#{PORT}#${PRJ_SER2NET_PORT}# -e s#{DEVICE}#${sdev}# -e s#{BAUD}#${sbaud}# /etc/ser2net.yaml >/tmp/ser2net.yaml &&"
-            run_cmd="${run_cmd} /usr/sbin/ser2net -c /tmp/ser2net.yaml &"
-            run_cmd="${run_cmd} exec bash"
-
-            set -- /bin/sh -c "${run_cmd}"
+        [ -n "${flag_nfs}" ] && {
+            run_args="${run_args} -p 0.0.0.0:2049:${PRJ_NFSD_PORT}/tcp"
+            run_cmd="/usr/local/bin/entrypoint.sh op_start_nfs --read-only"
         }
     }
 
-    [ -z "${status}" ] &&
-        exec docker run --name ${container} -h ${container} \
+    [ -z "${status}" ] && {
+        printf "Creating container %s\n" "${container}"
+        docker run --name ${container} -h ${container} \
             --mount "type=bind,source=${PRJ_DIR},destination=${PRJ_DIR}" \
             ${run_args} \
             --log-driver local --log-opt max-size=10m --log-opt max-file=3 \
-            -it ${IMAGE_NAME} "$@"
+            --detach ${IMAGE_NAME} "$@" || return 1
 
-    [ "${status}" = "running" ] ||
-        exec docker start -ai ${container}
+        status=$(docker inspect -f '{{.State.Status}}' "${container}" 2>/dev/null)
+        [ "${status}" = "running" ] || {
+            printf "Container %s is not running!\n" "${container}"
+            return 1
+        }
+    }
 
-    [ "${op}" != "exec" ] ||
+    [ "${status}" = "running" ] || {
+        printf "Starting container %s\n" "${container}"
+        docker start ${container}
+    }
+
+    [ -n "${run_cmd}" ] &&
+        docker exec --detach ${container} ${run_cmd}
+
+    [ -n "${flag_inter}" ] && op="exec" && set -- bash
+
+    [ "${op}" = "exec" ] &&
         exec docker exec -it ${container} "${@:-bash}"
+
+    return 0
 }
 
 #
@@ -146,6 +194,7 @@ while [ $# -gt 0 ]; do
             --build-arg PRJ_DIR=${PRJ_DIR} \
             --build-arg SER2NET_PORT=${PRJ_SER2NET_PORT} \
             --build-arg TFTPD_PORT=${PRJ_TFTPD_PORT} \
+            --build-arg NFSD_PORT=${PRJ_NFSD_PORT} \
             -t ${IMAGE_NAME} ${SCRIPT_DIR}
         exit $?
         ;;

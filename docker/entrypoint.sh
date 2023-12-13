@@ -5,10 +5,22 @@
 #
 # Docker container entrypoint script.
 
+#
+# Wrapper for logger to ensure messages reach Docker logging driver
+# when the syslog daemon is not running.
+# Additionally, prints the messages to stderr if PID != 1.
+#
 log() {
-    local level=$1
+    local level=$1 flags
+    [ $$ -eq 1 ] || flags="-s"
+
     shift
-    logger -s -t entrypoint -p user.${level} -- $*
+    # WARNING: Do not pass quoted "$*" to logger, to allow reading stdin
+    # when no arguments are provided.
+    logger ${flags} -t entrypoint -p user.${level} -- $* || {
+        [ $$ -eq 1 ] || flags="/dev/stderr"
+        printf "%s\n" "$*" | tee ${flags} >/proc/1/fd/1
+    }
 }
 
 #
@@ -43,6 +55,16 @@ run_cmd() {
         log err "Command '$*' failed: $(sanitize_log "${err:-<no stderr msg>}")"
 
     return ${res}
+}
+
+#
+# Execute a command in the background and ingore any HUP signals.
+# If supported, also remove it from the shell's process group.
+#
+run_detached() {
+    nohup "$@" </dev/null >/dev/null 2>&1 &
+    # shellcheck disable=SC3044
+    command -v disown >/dev/null 2>&1 && disown
 }
 
 #
@@ -92,31 +114,37 @@ pidof_regex() {
 }
 
 op_start_s2n_tftp() {
-    local sdev=$1 sbaud=$2 user=${3:-nobody}
+    local sdev=$1 sbaud=$2 user=${3:-nobody} cfg="/tmp/ser2net.yaml"
 
     pidof -q ser2net || {
-        [ -n "${sdev}" ] && [ -n "${sbaud}" ] || {
-            log err "Expecting sdev and/or sbaud"
-            exit 1
+        [ -f ${cfg} ] || {
+            [ -n "${sdev}" ] && [ -n "${sbaud}" ] || {
+                log err "Expecting sdev and/or sbaud"
+                exit 1
+            }
+
+            run_cmd cp /etc/ser2net.yaml ${cfg}
+            run_cmd sed \
+                -e "s/{PORT}/${SER2NET_PORT:-20000}/" \
+                -e "s@{DEVICE}@${sdev}@" \
+                -e "s/{BAUD}/${sbaud}/" \
+                /etc/ser2net.yaml >${cfg} || exit $?
         }
 
-        run_cmd cp /etc/ser2net.yaml /tmp/ser2net.yaml
-        run_cmd sed \
-            -e "s/{PORT}/${SER2NET_PORT:-20000}/" \
-            -e "s@{DEVICE}@${sdev}@" \
-            -e "s/{BAUD}/${sbaud}/" \
-            /etc/ser2net.yaml >/tmp/ser2net.yaml || exit $?
-
-        run_cmd /usr/sbin/ser2net -c /tmp/ser2net.yaml || exit $?
+        run_cmd /usr/sbin/ser2net -c ${cfg} || exit $?
     }
 
     pidof -q in.tftpd || {
         run_cmd mkdir -p ${PRJ_DIR}/work || exit $?
 
-        run_cmd /usr/sbin/in.tftpd -Lvvv --user ${user} \
+        run_cmd /usr/sbin/in.tftpd -l -vvv --user ${user} \
             --address 0.0.0.0:${TFTPD_PORT:-69} --secure -4 \
             ${PRJ_DIR}/work || exit $?
     }
+}
+
+op_stop_s2n_tftp() {
+    busybox kill -TERM $(pidof in.tftpd) $(pidof ser2net) >/dev/null 2>&1
 }
 
 #
@@ -198,64 +226,26 @@ op_start_nfs() {
         --no-udp --debug all || exit $?
 }
 
-op_stop_all() {
-    local pids="$*"
-
-    log info "Terminating services.."
-
-    # NFS mount daemon
+op_stop_nfs() {
     busybox kill -TERM $(pidof rpc.mountd) >/dev/null 2>&1
     # Unexport all exports listed in /etc/exports
     run_cmd /usr/sbin/exportfs -au
     # Stop all threads and thus close any open connections
     run_cmd /usr/sbin/rpc.nfsd 0
-
-    # Additional NFS related services
-    pids="${pids} $(pidof rpc.nfsd) $(pidof rpcbind)"
-    # TFTPD & ser2net
-    pids="${pids} $(pidof in.tftpd) $(pidof ser2net)"
-
-    busybox kill -TERM ${pids} >/dev/null 2>&1
+    # Stop remaining NFS services
+    busybox kill -TERM $(pidof rpc.nfsd) $(pidof rpcbind) >/dev/null 2>&1
 }
 
-monitor_ctl() {
-    local monitor_pid
-    # {entrypoint.sh} /bin/sh docker/entrypoint.sh monitor start
-    monitor_pid=$(pidof_regex "^\{${0##*/}\}.*${0##*/} monitor( start)?\$")
+op_stop_all() {
+    log info "Terminating services.."
 
-    case ${1:-start} in
-    stop)
-        [ -n "${monitor_pid}" ] || {
-            log info "monitor already stopped"
-            return 0
-        }
-        busybox kill -TERM ${monitor_pid}
-        ;;
+    op_stop_nfs
+    op_stop_s2n_tftp
 
-    status)
-        [ -n "${monitor_pid}" ]
-        ;;
-
-    start | *)
-        [ -n "${monitor_pid}" ] && {
-            log info "monitor already running"
-            return 0
-        }
-
-        log info "Starting monitor"
-        unset MONITOR_SLEEP_PID
-        trap 'op_stop_all ${MONITOR_SLEEP_PID}; exit 0' INT TERM
-
-        while :; do
-            log info "Waiting for signals.."
-            sleep 2073600 &
-            MONITOR_SLEEP_PID=$!
-            wait
-        done
-        ;;
-    esac
-
-    return $?
+    busybox kill -TERM $* >/dev/null 2>&1
+    sleep 1
+    kill -TERM $(pidof busybox) >/dev/null 2>&1
+    busybox killall sleep >/dev/null 2>&1
 }
 
 process_op() {
@@ -269,20 +259,57 @@ process_op() {
         exit 1
     }
 
-    # Start monitor if not already running
-    monitor_ctl status || {
-        sleep 1
-        monitor_ctl status || nohup "$0" monitor &
-    }
-
     shift
     ${func} "$@"
 }
 
-# Ensure syslogd & monitor are always running
-pidof_regex -q "^busybox syslogd\b.*stdout\$" || {
-    busybox syslogd -n -O /dev/stdout &
+monitor_ctl() {
+    local monitor_pid
+    # {entrypoint.sh} /bin/sh /usr/local/bin/entrypoint.sh monitor
+    monitor_pid=$(pidof_regex "^\{${0##*/}\}.*${0##*/} monitor( start)?\$")
+
+    case ${1:-start} in
+    stop)
+        shift
+        op_stop_all "$@"
+        ;;
+
+    status)
+        [ -n "${monitor_pid}" ]
+        ;;
+
+    start | *)
+        [ -n "${monitor_pid}" ] && {
+            log info "monitor already running"
+            return 0
+        }
+
+        log info "Starting monitor"
+        trap 'op_stop_all; exit 0' INT TERM
+        trap 'log info Ignoring HUP' HUP
+
+        while :; do
+            # FIXME: sleep only if there are no child processes to wait for
+            pidof -q sleep || sleep 3600 &
+            wait
+        done
+        ;;
+    esac
+
+    return $?
 }
+
+# Ensure syslogd is running.
+#
+# WARNING: Need to use stdout of PID 1 to have the messages
+# delivered to Docker logging driver.
+#
+#  /proc/1/fd/1 -> 'pipe:[3744375]'
+#  /proc/6/fd/1 -> /dev/pts/0
+#
+pidof_regex -q "^busybox syslogd\b.*stdout\$" ||
+    flock -x -n --verbose /tmp/syslogd.lock \
+        -c "busybox syslogd -O /proc/1/fd/1 && sleep .5"
 
 # Args parser
 case $1 in
@@ -291,7 +318,8 @@ op_* | op-*)
     exit $?
     ;;
 monitor)
-    monitor_ctl $2
+    shift
+    monitor_ctl "$@"
     exit $?
     ;;
 -h | --help)

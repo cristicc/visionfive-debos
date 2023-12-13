@@ -28,7 +28,7 @@ ARG SER2NET_PORT=10050
 ARG TFTPD_PORT=10069
 ARG NFSD_PORT=12049
 
-ENV PATH=${PATH}:/home/${HOST_USER}/local/bin
+ENV PATH=/home/${HOST_USER}/local/bin:/usr/local/bin:${PATH}
 ENV LANG C.UTF-8
 ENV PRJ_DIR=${PRJ_DIR}
 ENV SER2NET_PORT=${SER2NET_PORT}
@@ -39,12 +39,15 @@ EXPOSE ${SER2NET_PORT}/tcp
 EXPOSE ${TFTPD_PORT}/udp
 EXPOSE ${NFSD_PORT}/tcp
 
-RUN setcap 'cap_net_raw,cap_net_bind_service,cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap=+ep' /bin/busybox
-RUN setcap 'cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_setfcap=+ep' /usr/sbin/in.tftpd
 # TODO: restrict capabilities to mandatory only
-RUN setcap '=+ep' /sbin/rpcbind
-RUN setcap '=+ep' /usr/sbin/rpc.nfsd
-RUN setcap '=+ep' /usr/sbin/rpc.mountd
+RUN setcap "cap_net_raw,cap_net_bind_service,cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap=+ep" /bin/busybox
+RUN setcap "cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_setfcap=+ep" /usr/sbin/in.tftpd
+
+# TODO: using setcap on NFS services doesn't seem to work, need to run as root
+# RUN setcap "cap_net_raw,cap_net_bind_service,cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_setfcap+ep" /sbin/rpcbind
+# RUN setcap "cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_setfcap+ep" /usr/sbin/rpc.nfsd
+# RUN setcap "cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_setfcap+ep" /usr/sbin/rpc.mountd
+RUN setcap "cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_setgid,cap_setuid,cap_setpcap,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap=+ep" /usr/sbin/exportfs
 
 RUN groupadd -g ${HOST_GID} ${HOST_USER} && \
     groupmod -g ${HOST_UUCP_GID} uucp && \
@@ -62,4 +65,4 @@ WORKDIR ${PRJ_DIR}
 VOLUME ${PRJ_DIR}
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["bash"]
+CMD ["monitor"]

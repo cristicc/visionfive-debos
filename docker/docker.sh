@@ -71,7 +71,7 @@ manage_container() {
         return 0
     }
 
-    local flag_new flag_nfs flag_inter sdev sbaud run_args run_cmd
+    local flag_new flag_nfs flag_inter sdev sbaud run_args
     [ "${op}" = "run" ] && {
         while [ $# -gt 0 ]; do
             case $1 in
@@ -116,7 +116,7 @@ manage_container() {
 
         [ -n "${flag_nfs}" ] && {
             run_args="${run_args} -p 0.0.0.0:2049:${PRJ_NFSD_PORT}/tcp"
-            run_cmd="/usr/local/bin/entrypoint.sh op_start_nfs --read-only"
+            run_args="${run_args} --cap-add SYS_ADMIN --cap-add SETPCAP"
         }
     }
 
@@ -126,7 +126,9 @@ manage_container() {
             --mount "type=bind,source=${PRJ_DIR},destination=${PRJ_DIR}" \
             ${run_args} \
             --log-driver local --log-opt max-size=10m --log-opt max-file=3 \
-            --detach ${IMAGE_NAME} "$@" || return 1
+            --detach ${IMAGE_NAME} || return 1
+
+        sleep 2
 
         status=$(docker inspect -f '{{.State.Status}}' "${container}" 2>/dev/null)
         [ "${status}" = "running" ] || {
@@ -140,13 +142,16 @@ manage_container() {
         docker start ${container}
     }
 
-    [ -n "${run_cmd}" ] &&
-        docker exec --detach ${container} ${run_cmd}
+    [ -n "${sdev}" ] && docker exec --detach ${container} \
+        entrypoint.sh op_start_s2n_tftp "${sdev}" "${sbaud}" "$(id -u -n)"
 
-    [ -n "${flag_inter}" ] && op="exec" && set -- bash
+    [ -n "${flag_nfs}" ] && docker exec -u root --detach ${container} \
+        entrypoint.sh op_start_nfs --read-only
 
-    [ "${op}" = "exec" ] &&
-        exec docker exec -it ${container} "${@:-bash}"
+    [ -n "${flag_inter}" ] && op="exec" && set --
+    [ -n "$1" ] || set -- sh -c "busybox ps -o pid,ppid,args; exec bash"
+
+    [ "${op}" = "exec" ] && exec docker exec -it ${container} "$@"
 
     return 0
 }

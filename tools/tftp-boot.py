@@ -109,8 +109,9 @@ def send_uboot_cmd(con, cmd, cmd_expect=UBOOT_PROMPT):
         raise Exception(f'Command "{cmd}" failed: {con.match.group(0)}')
 
 
-def tftp_boot_linux(con, tftp_server_ip, linux_img_dir, ramdisk_file,
-                    kernel_args):
+def tftp_boot_linux(
+    con, tftp_server_ip, linux_img_dir, ramdisk_file, kernel_args
+):
     try:
         send_uboot_cmd(con, "setenv autoload no")
         send_uboot_cmd(con, "setenv initrd_high 0xffffffffffffffff")
@@ -126,14 +127,21 @@ def tftp_boot_linux(con, tftp_server_ip, linux_img_dir, ramdisk_file,
             f"tftpboot {UBOOT_DTB_ADDR} {linux_img_dir}"
             + "/dts/starfive/jh7100-starfive-visionfive-v1.dtb",
         )
-        send_uboot_cmd(con, f"tftpboot {UBOOT_RAMDISK_ADDR} {ramdisk_file}")
+
+        if ramdisk_file:
+            send_uboot_cmd(
+                con, f"tftpboot {UBOOT_RAMDISK_ADDR} {ramdisk_file}"
+            )
+
         send_uboot_cmd(
             con,
             f"setenv bootargs '{kernel_args}'",
         )
         send_uboot_cmd(
             con,
-            f"booti {UBOOT_KERNEL_ADDR} {UBOOT_RAMDISK_ADDR} {UBOOT_DTB_ADDR}",
+            f"booti {UBOOT_KERNEL_ADDR}"
+            + f" {UBOOT_RAMDISK_ADDR if ramdisk_file else '-'}"
+            + f" {UBOOT_DTB_ADDR}",
             LINUX_KERNEL_START_MSG,
         )
 
@@ -199,7 +207,7 @@ def main():
     )
     parser.add_argument(
         "--kernel-args",
-        help='Arguments passed to the linux kernel before booting',
+        help="Arguments passed to the linux kernel before booting",
         default=LINUX_KENERL_DEFAULT_ARGS,
     )
     parser.add_argument(
@@ -233,7 +241,7 @@ def main():
                 args.tftp_server_ip,
                 f"{args.kernel_root}/{LINUX_KERNEL_IMG_DIR}",
                 args.ramdisk_file,
-                args.kernel_args
+                args.kernel_args,
             )
             wait_shell_prompt(con)
 

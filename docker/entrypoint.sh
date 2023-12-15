@@ -158,7 +158,7 @@ op_start_nfs() {
 
     while [ $# -gt 0 ]; do
         case $1 in
-        --export_dir)
+        --export-dir)
             shift
             export_dir=$1
             ;;
@@ -173,7 +173,7 @@ op_start_nfs() {
             sync_flags=sync
             ;;
         *)
-            log err "Invalid nfsd arg: $1"
+            log err "Invalid start_nfs option: $1"
             exit 1
             ;;
         esac

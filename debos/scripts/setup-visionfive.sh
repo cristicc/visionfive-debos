@@ -9,8 +9,10 @@ set -e
 #apt-get clean -qy
 
 # Install kernel packages
-echo "Installing kernel packages"
-apt-get install -qy --reinstall /tmp/script/bin/linux-*.deb
+if ls /tmp/script/bin/linux-*.deb 1>/dev/null 2>&1; then
+    echo "Installing kernel packages"
+    apt-get install -qy --reinstall /tmp/script/bin/linux-*.deb
+fi
 
 # Configure u-boot
 #
@@ -81,23 +83,42 @@ echo "Configuring system"
 
 # Configure fstab
 cat <<EOF >/etc/fstab
-/dev/mmcblk0p2 /boot/efi vfat umask=0077 0 1
+tmpfs /tmp tmpfs mode=1777,strictatime,nosuid,nodev,size=1G 0 0
+# /dev/mmcblk0p2 /boot/efi vfat umask=0077 0 1
 EOF
 
-# Configure network
+# Configure networking
+cat >/etc/hosts <<'EOF'
+127.0.0.1	localhost
+::1	localhost ip6-localhost ip6-loopback
+fe00::0	ip6-localnet
+ff00::0	ip6-mcastprefix
+ff02::1	ip6-allnodes
+ff02::2	ip6-allrouters
+127.0.0.1	visionfive
+EOF
+
 mkdir -p /etc/systemd/network
-cat >/etc/systemd/network/dhcp.network <<'EOF'
+cat >/etc/systemd/network/wired.network <<'EOF'
 # https://www.debian.org/doc/manuals/debian-reference/ch05.en.html
 #
 # Run the following command after any changes to this file:
 # systemctl restart systemd-networkd systemd-resolved
 
 [Match]
-Name=eth*
+Name=e*
+KernelCommandLine=!nfsroot
 
 [Network]
 DHCP=yes
 EOF
+
+mkdir -p /etc/systemd/resolved.conf.d
+cat >/etc/systemd/resolved.conf.d/fallback_dns.conf <<'EOF'
+[Resolve]
+FallbackDNS=8.8.8.8
+EOF
+
 systemctl enable systemd-networkd systemd-resolved
 
 # Set root password
@@ -107,9 +128,9 @@ echo "root:root" | chpasswd
 echo "PermitRootLogin=yes" >>/etc/ssh/sshd_config
 
 # Change hostname
-echo visionfive >/etc/hostname
+echo "visionfive" >/etc/hostname
 
-# sync disks
+# Synchronize cached writes to persistent storage
 sync
 
 echo "Done"

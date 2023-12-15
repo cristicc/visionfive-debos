@@ -34,7 +34,8 @@ rsync --exclude="/${0##*/}" ${SCRIPT_DIR}/ ${INSTALL_DIR}/
 
 BIN_DIR=${INSTALL_DIR}/scripts/bin
 mkdir -p ${BIN_DIR}
-rsync ${INSTALL_DIR}/../linux/linux-image-*_riscv64.deb ${BIN_DIR}/
+rsync ${INSTALL_DIR}/../linux/linux-image-*_riscv64.deb ${BIN_DIR}/ ||
+    printf "\nWARNING: missing linux kernel package!\n"
 rsync ${INSTALL_DIR}/../grub/dist/grubriscv64.efi ${BIN_DIR}/
 
 IMG_FILE=${INSTALL_DIR}/debian-riscv64.img.gz

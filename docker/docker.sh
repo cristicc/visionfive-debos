@@ -146,7 +146,7 @@ manage_container() {
         entrypoint.sh op_start_s2n_tftp "${sdev}" "${sbaud}" "$(id -u -n)"
 
     [ -n "${flag_nfs}" ] && docker exec -u root --detach ${container} \
-        entrypoint.sh op_start_nfs --read-only
+        entrypoint.sh op_start_nfs --export-dir "${PRJ_DIR}/work/nfs/debos-rootfs"
 
     [ -n "${flag_inter}" ] && op="exec" && set --
     [ -n "$1" ] || set -- sh -c "busybox ps -o pid,ppid,args; exec bash"

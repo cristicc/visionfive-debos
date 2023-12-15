@@ -62,6 +62,10 @@ actions:
     chroot: true
     script: scripts/setup-visionfive.sh
 
+  - action: pack
+    file: rootfs.tar.xz
+    compression: xz
+
   - action: image-partition
     imagename: {{ $image }}
     imagesize: 900MB

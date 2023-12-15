@@ -599,14 +599,15 @@ tools, we can use a prebuilt one:
 ----
 visionfive-build:~/visionfive-debos$ mkdir -p work/ramdisk && cd work/ramdisk
 visionfive-build:~/visionfive-debos/work/ramdisk$ curl -fLO \
-    https://github.com/montjoie/lava-healthchecks-binary/raw/master/images/rootfs/buildroot/buildroot-baseline/20221125.0/riscv/rootfs.cpio.gz
+    https://storage.kernelci.org/images/rootfs/buildroot/buildroot-baseline/20230703.0/riscv/rootfs.cpio.gz
 ----
 
 Now run the command below to create a RISC-V compatible ramdisk image for U-Boot:
 
 [source,sh]
 ----
-visionfive-build:~/visionfive-debos/work/ramdisk$ mkimage -A riscv -T ramdisk -C none -d rootfs.cpio.gz rootfs.cpio.gz.uboot
+visionfive-build:~/visionfive-debos/work/ramdisk$ mkimage -A riscv -T ramdisk \
+    -C none -d rootfs.cpio.gz rootfs.cpio.gz.uboot
 Image Name:
 Created:      Sun Jan 29 17:50:36 2023
 Image Type:   RISC-V Linux RAMDisk Image (uncompressed)
@@ -627,28 +628,27 @@ _visionfive-build_ Docker container.
 ----
 visionfive-build:~/visionfive-debos$ tools/tftp-boot.py -h
 usage: tftp-boot.py [-h] [--kernel-root KERNEL_ROOT] [--ramdisk-file RAMDISK_FILE]
-                    [--tftp-server-ip TFTP_SERVER_IP] [--skip-boot SKIP_BOOT]
-                    tty [baud]
+            [--kernel-args KERNEL_ARGS] [--tftp-server-ip TFTP_SERVER_IP]
+            [--skip-boot] serialport [baud]
 
 Utility to automate booting Linux via U-Boot TFTP.
 
 positional arguments:
-  tty                   Serial console device
-  baud                  The serial port baud rate (default: 115200)
+  serialport            Serial device path or telnet port number
+  baud                  The baud rate when using serial device path (default: 115200)
 
 optional arguments:
   -h, --help            show this help message and exit
   --kernel-root KERNEL_ROOT
-                        Linux kernel top directory relative to project "work" folder
-                        (default: linux)
+                        Linux kernel top directory relative to project "work" folder (default: linux)
   --ramdisk-file RAMDISK_FILE
-                        U-Boot ramdisk file path relative to project "work" folder
-                        (default: ramdisk/rootfs.cpio.gz.uboot)
+                        U-Boot ramdisk file path relative to project "work" folder (default: )
+  --kernel-args KERNEL_ARGS
+                        Arguments passed to the linux kernel before booting
+                        (default: console=ttyS0,115200n8 root=/dev/ram0 console_msg_format=syslog earlycon ip=dhcp)
   --tftp-server-ip TFTP_SERVER_IP
-                        The IP address of the TFTP server hosting the boot files
-                        (default: 192.168.1.90)
-  --skip-boot SKIP_BOOT
-                        Skip TFTP booting procedure (default: False)
+                        The IP address of the TFTP server hosting the boot files (default: 192.168.1.90)
+  --skip-boot           Skip U-Boot TFTP boot procedure (default: False)
 ----
 
 [IMPORTANT]
@@ -660,7 +660,9 @@ started.
 [source,sh]
 ----
 visionfive-build:~/visionfive-debos$ tools/tftp-boot.py \
-    --kernel-root linux-wip --tftp-server-ip 192.168.1.10 /dev/ttyUSB0
+    --kernel-root linux-wip \
+    --ramdisk-file ramdisk/rootfs.cpio.gz.uboot \
+    --tftp-server-ip 192.168.1.10 /dev/ttyUSB0
 Connecting to /dev/ttyUSB0 @115200
 > Waiting for U-Boot prompt..
 

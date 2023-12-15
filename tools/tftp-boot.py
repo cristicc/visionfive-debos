@@ -203,7 +203,7 @@ def main():
     parser.add_argument(
         "--ramdisk-file",
         help='U-Boot ramdisk file path relative to project "work" folder',
-        default="ramdisk/rootfs.cpio.gz.uboot",
+        default="",
     )
     parser.add_argument(
         "--kernel-args",

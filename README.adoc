@@ -251,7 +251,7 @@ a separate git working tree:
 visionfive-build:~/visionfive-debos/work$ git clone -o linux git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 visionfive-build:~/visionfive-debos/work$ cd linux
 # Skip the commands below if linux-next is not of interest.
-visionfive-build:~/visionfive-debos/work/linux$ git remote add linux-next git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+visionfive-build:~/visionfive-debos/work/linux$ git remote add -t master linux-next https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
 visionfive-build:~/visionfive-debos/work/linux$ git fetch linux-next
 visionfive-build:~/visionfive-debos/work/linux$ git worktree add --checkout -b linux-next ../linux-next next-20221028
 ----
@@ -377,8 +377,8 @@ container:
 [source,sh]
 ----
 $ cd work/
-$ git clone git://git.savannah.gnu.org/grub.git
-# TODO: Drop the commands below when upstream support is complete
+$ git clone https://git.savannah.gnu.org/git/grub.git
+$ # TODO: Drop the commands below when upstream support is complete
 $ cd grub
 $ git remote add tekkamanninja https://github.com/tekkamanninja/grub.git
 $ git fetch tekkamanninja
